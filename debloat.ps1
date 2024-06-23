@@ -50,7 +50,8 @@ $features = @(
     "Microsoft.XboxIdentityProvider",
     "Microsoft.XboxSpeechToTextOverlay",
     "Microsoft.ZuneMusic",
-    "Microsoft.ZuneVideo"
+    "Microsoft.ZuneVideo",
+    "Microsoft.OneDrive"
 )
 foreach ($feature in $features) {
     try {
@@ -84,7 +85,8 @@ $apps = @(
     "Microsoft.XboxIdentityProvider",
     "Microsoft.XboxSpeechToTextOverlay",
     "Microsoft.ZuneMusic",
-    "Microsoft.ZuneVideo"
+    "Microsoft.ZuneVideo",
+    "Microsoft.OneDrive" 
 )
 foreach ($app in $apps) {
     try {
@@ -155,7 +157,8 @@ $services = @(
     "dmwappushservice",
     "SysMain",
     "wificx",
-    "wifinudmgr"
+    "wifinudmgr",
+    "OneDrive"
 )
 foreach ($service in $services) {
     try {

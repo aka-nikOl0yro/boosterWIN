@@ -11,6 +11,7 @@ del /f /s /q %windir%\Temp\*.*
 del /f /s /q %UserProfile%\AppData\Local\Temp\*.*
 del /f /s /q %UserProfile%\AppData\Local\Microsoft\Windows\Temporary Internet Files\*.*
 del /f /s /q C:\Windows\prefetch\*.*
+del /f /s /q C:\Users\ayrni\AppData\Local\Temp\*.*
 
 echo Eliminazione completata.
 )

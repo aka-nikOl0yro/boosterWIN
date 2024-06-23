@@ -342,7 +342,7 @@ echo Disinstallazione completata
 set mydir=%~dp0%
 
 echo Remove Default Apps
-powershell.exe -executionpolicy bypass -nologo -noninteractive -file "%mydir%Remove-Default-Apps.ps1"
+powershell.exe -executionpolicy bypass -nologo -noninteractive -file "%mydir%/debloat.ps1"
 rem Disabilita il servizio di cloud
 sc config wlidsvc start= demand
 irm christitus.com/win | iex

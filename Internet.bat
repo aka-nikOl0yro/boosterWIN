@@ -22,12 +22,12 @@ pushd "%~dp0"
  echo ricerca di aggiornamenti...
 wuauclt.exe /detectnow /updatenow
 
-if exist "Internet" (
+if exist "Iinternet" (
  start internetboosterPRO.bat
  exit
  ) else (
  type nul>Internet
-  attrib +S +H Internet 
+  attrib +H Internet 
 )
 
 :gpedit
@@ -62,7 +62,7 @@ pause
 color 07
 echo gpedit configurato
 timeout 5
-choice /c yn /cs /t 800 /d n /m "aprire l'optimizer"
+choice /c yn /cs /t 800 /d n /m "aprire l'optimizer (non consigliato)"
 if errorlevel 2 goto SKIP1
 if errorlevel 1 goto RUN
 :RUN
@@ -74,7 +74,8 @@ start tcp1.png & tcp2.png
 start /w TCPOptimizer.exe
 goto FINE1
 :SKIP1
-echo skipped
+echo running anyway ;)
+internet.ps1
 timeout 4
 :FINE1
 timeout 5
