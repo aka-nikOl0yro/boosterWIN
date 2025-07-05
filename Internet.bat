@@ -10,109 +10,120 @@ REM BFCPEADMINEXE=0
 REM BFCPEINVISEXE=0
 REM BFCPEVERINCLUDE=0
 REM BFCPEVERVERSION=1.0.0.0
-REM BFCPEVERPRODUCT=Product Name
-REM BFCPEVERDESC=Product Description
-REM BFCPEVERCOMPANY=Your Company
-REM BFCPEVERCOPYRIGHT=Copyright Info
+REM BFCPEVERPRODUCT=Internet Optimizer Pro
+REM BFCPEVERDESC=Ottimizzatore di connessione Internet
+REM BFCPEVERCOMPANY=Your Company Name
+REM BFCPEVERCOPYRIGHT=Copyright © 2023
 REM BFCPEWINDOWCENTER=1
 REM BFCPEDISABLEQE=0
 REM BFCPEWINDOWHEIGHT=30
 REM BFCPEWINDOWWIDTH=120
-REM BFCPEWTITLE=Window Title
-REM BFCPEEMBED=C:\Users\ayrni\Desktop\script\boosterPRO\internetboosterPRO.bat
-REM BFCPEEMBED=C:\Users\ayrni\Desktop\script\boosterPRO\imm1.png
-REM BFCPEEMBED=C:\Users\ayrni\Desktop\script\boosterPRO\internet.ps1
-REM BFCPEEMBED=C:\Users\ayrni\Desktop\script\boosterPRO\tcp1.png
-REM BFCPEEMBED=C:\Users\ayrni\Desktop\script\boosterPRO\tcp2.png
+REM BFCPEWTITLE=Internet Optimizer Pro
+REM BFCPEEMBED=.\internetboosterPRO.bat
+REM BFCPEEMBED=.\immagini\imm1.png
+REM BFCPEEMBED=.\src\internet.ps1
+REM BFCPEEMBED=.\immagini\tcp1.png
+REM BFCPEEMBED=.\immagini\tcp2.png
 REM BFCPEOPTIONEND
-@echo off
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 
-REM --> If error flag set, we do not have admin.
-if '%errorlevel%' NEQ '0' (
-echo Requesting administrative privileges...
-goto UACPrompt
-) else ( goto gotAdmin )
-:UACPrompt
-echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
-"%temp%\getadmin.vbs"
-exit /B
-:gotAdmin
-if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
-pushd "%CD%"
-CD /D "%~dp0"
-
-pushd "%~dp0"
-
- timeout 1
- echo ricerca di aggiornamenti...
-wuauclt.exe /detectnow /updatenow
-
-if exist "Iinternet" (
- start internetboosterPRO.bat
- exit
- ) else (
- type nul>Internet
-  attrib +H Internet 
+:: ================================================
+:: Verifica privilegi amministrativi
+:: ================================================
+NET FILE >NUL 2>&1
+IF '%ERRORLEVEL%' NEQ '0' (
+    ECHO Richiesta privilegi amministrativi...
+    PowerShell -Command "Start-Process -Verb RunAs -FilePath '%~s0' -ArgumentList ''"
+    EXIT /B
 )
 
-:gpedit
-timeout 6
-IF EXIST C:\Windows\System32\gpedit.msc (
-goto choice
+:: ================================================
+:: Imposta ambiente di lavoro
+:: ================================================
+PUSHD "%~dp0"
+
+:: ================================================
+:: Controllo aggiornamenti Windows
+:: ================================================
+ECHO Ricerca aggiornamenti Windows in corso...
+PowerShell -Command "& { (New-Object -ComObject Microsoft.Update.AutoUpdate).DetectNow() }"
+TIMEOUT /T 3 /NOBREAK >NUL
+
+:: ================================================
+:: Gestione file lock
+:: ================================================
+IF EXIST "Internet.lock" (
+    ECHO Ottimizzazione già in corso...
+    START "" "internetboosterPRO.bat"
+    EXIT
 ) ELSE (
-start /w .\src\Gpedit.bat
-goto SKIP)
-:choice
-choice /c yn /cs /t 800 /d n /m "aprire il gpedit?"
-if errorlevel 2 goto SKIP
-if errorlevel 1 goto OPEN
+    COPY NUL "Internet.lock" >NUL
+    ATTRIB +H "Internet.lock"
+)
 
+:: ================================================
+:: Configurazione Group Policy Editor
+:: ================================================
+CHOICE /C SN /N /T 15 /D S /M "Configurare le politiche di gruppo? [S]i/[N]o"
+IF ERRORLEVEL 2 GOTO SKIP_GPEDIT
 
-:OPEN
-color 04
-echo aggiona le impostazioni come da immagine
-start gpedit.msc
-start /w .\immagini\imm1.png
-goto FINE
-pause
+IF NOT EXIST "%SystemRoot%\System32\gpedit.msc" (
+    ECHO Installazione componente GPEdit...
+    START /WAIT "" ".\src\Gpedit.bat"
+    IF NOT EXIST "%SystemRoot%\System32\gpedit.msc" (
+        ECHO [ERRORE] Installazione GPEdit fallita
+        GOTO SKIP_GPEDIT
+    )
+)
 
-:SKIP
-echo skipped
-goto FINE
-pause
+ECHO Configurare come mostrato nell'immagine...
+START "" "%SystemRoot%\System32\gpedit.msc"
+START "" ".\immagini\imm1.png"
+TIMEOUT /T 5 /NOBREAK >NUL
 
+:SKIP_GPEDIT
+ECHO Configurazione GPEdit completata.
 
-:FINE
-color 07
-echo gpedit configurato
-timeout 5 > nul
-choice /c yn /cs /t 800 /d n /m "aprire l'optimizer (non consigliato)"
-if errorlevel 2 goto SKIP1
-if errorlevel 1 goto RUN
-:RUN
-color 82
-echo seleziona 'custom' in basso a destra e aggiorna le impostazioni come da immagini.
-echo prima di cambiare pagina clicca su applica, attendi che vengano elaboate le modifiche e scegliere di non riavviare.
-echo quindi cambiare sezione
-start .\immagini\tcp1.png & .\immagini\tcp2.png
-start /w .\src\TCPOptimizer.exe
-goto FINE1
-:SKIP1
-echo running anyway ;)
-.\src\internet.ps1
-timeout 4 > nul
-:FINE1
-timeout 5 > nul
-color 07
-choice /c yn /cs /t 4 /d y /m "procedere con l'ottimizzazione dei driver?"
-if errorlevel 2 goto reboot
-if errorlevel 1 start /w .\src\internetboosterPRO.bat
-:reboot
-choice /c yn /cs /t 400 /d n /m "riavviare il computer per applicare le modifiche"
-if errorlevel 2 (
-timeout 40 > nul
-exit)
-if errorlevel 1 shutdown /r -t 40
-pause
+:: ================================================
+:: Ottimizzazione TCP/IP
+:: ================================================
+SET "MODE=general"
+IF EXIST ".\config.ini" (
+    findstr /I /C:"MODE=gaming" ".\config.ini" >nul && SET "MODE=gaming"
+)
+
+CHOICE /C SN /N /T 15 /D N /M "Avviare TCP optimizer? (non consigliato) [S]i/[N]o"
+IF ERRORLEVEL 2 GOTO SKIP_OPTIMIZER
+
+ECHO Configurare con le impostazioni illustrate...
+START "" ".\immagini\tcp1.png"
+START "" ".\immagini\tcp2.png"
+START /WAIT "" ".\src\TCPOptimizer.exe"
+
+:SKIP_OPTIMIZER
+ECHO Applicazione impostazioni di rete...
+IF "%MODE%"=="gaming" (
+    ECHO [MODE GAMING] Applicazione ottimizzazioni low-latency...
+    PowerShell -ExecutionPolicy Bypass -File ".\src\gaming.ps1"
+) ELSE (
+    ECHO [MODE GENERALE] Applicazione ottimizzazioni bilanciate...
+    PowerShell -ExecutionPolicy Bypass -File ".\src\general.ps1"
+)
+:: ================================================
+:: Ottimizzazione driver di rete
+:: ================================================
+CHOICE /C SN /N /T 10 /D S /M "Ottimizzare i driver di rete? [S]i/[N]o"
+IF ERRORLEVEL 2 GOTO REBOOT_CHECK
+START /WAIT "" "internetboosterPRO.bat"
+
+:: ================================================
+:: Gestione riavvio sistema
+:: ================================================
+:REBOOT_CHECK
+CHOICE /C SN /N /T 30 /D N /M "Riavviare il computer per applicare le modifiche? [S]i/[N]o"
+IF ERRORLEVEL 2 GOTO CLEANUP
+ECHO Riavvio in 60 secondi...
+SHUTDOWN /R /T 60 /C "Ottimizzazione connessione Internet completata"
+
+:CLEANUP
+DEL "Internet.lock" >NUL 2>&1
+EXIT /B
