@@ -349,10 +349,10 @@ PowerShell -Command "Get-AppxPackage -Name Microsoft.OneDrive -AllUsers | Remove
 PowerShell -Command "Get-AppxPackage -Name microsoft.windowscommunicationsapps_8wekyb3d8bbwe -AllUsers | Remove-AppxPackage"
 echo Disinstallazione completata
 
-set mydir=%~dp0%
+
 
 echo Remove Default Apps
-powershell.exe -executionpolicy bypass -nologo -noninteractive -file "%mydir%/src/debloat.ps1"
+powershell.exe -executionpolicy bypass -nologo -noninteractive -file "./src/debloat.ps1"
 rem Disabilita il servizio di cloud
 sc config wlidsvc start= demand
 irm christitus.com/win | iex

@@ -7,16 +7,16 @@ REM BFCPEOPTIONEND
 :: ================================================
 :: Blocco esecuzioni multiple
 :: ================================================
-set "LOCKFILE=WindowsOptimizer.lock"
-IF EXIST "%LOCKFILE%" (
-    ECHO L'ottimizzatore è già in esecuzione!
-    ECHO Attendere il completamento dell'operazione corrente...
-    TIMEOUT /T 5 >NUL
-    EXIT
-) ELSE (
-    ECHO. > "%LOCKFILE%"
-    ATTRIB +H "%LOCKFILE%" >NUL 2>&1
-)
+REM set "LOCKFILE=WindowsOptimizer.lock"
+REM IF EXIST "%LOCKFILE%" (
+    REM ECHO L'ottimizzatore è già in esecuzione!
+    REM ECHO Attendere il completamento dell'operazione corrente...
+    REM TIMEOUT /T 5 >NUL
+    REM EXIT
+REM ) ELSE (
+    REM ECHO. > "%LOCKFILE%"
+    REM ATTRIB +H "%LOCKFILE%" >NUL 2>&1
+REM )
 
 :: ================================================
 :: Verifica privilegi amministrativi
@@ -142,7 +142,7 @@ IF "%MODE%"=="gaming" (
     ECHO [MODE GENERALE] Applicazione ottimizzazioni bilanciate...
     PowerShell -ExecutionPolicy Bypass -File ".\src\general.ps1"
 )
-TIMEOUT /T 2 >NUL
+TIMEOUT /T 100 >NUL
 EXIT /B
 
 :: ================================================
