@@ -1,7 +1,8 @@
 # boosterWIN
 i've made this project for personal use.
+--------------------------------------------
 
-Guida all'Utilizzo dei Menu di Ottimizzazione
+# Guida all'Utilizzo dei Menu di Ottimizzazione
 Questo documento spiega come utilizzare i menu interattivi presenti negli script di ottimizzazione del sistema.
 
 Menu Principale (PUSHME.bat)
