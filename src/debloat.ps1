@@ -1,161 +1,4 @@
-param(
-    [switch]$AutoRun,
-    [switch]$SelectAll
-)
-
-# ================================================
-# FUNZIONE MENU INTERATTIVO
-# ================================================
-function Show-DebloatMenu {
-    $options = @(
-        [PSCustomObject]@{ 
-            Name = "Disable unnecessary scheduled tasks"; 
-            Selected = $false; 
-            ID = 1 
-        },
-        [PSCustomObject]@{ 
-            Name = "Uninstall Windows features"; 
-            Selected = $false; 
-            ID = 2 
-        },
-        [PSCustomObject]@{ 
-            Name = "Remove pre-installed bloatware"; 
-            Selected = $false; 
-            ID = 3 
-        },
-        [PSCustomObject]@{ 
-            Name = "Disable Windows Store Auto Update"; 
-            Selected = $false; 
-            ID = 4 
-        },
-        [PSCustomObject]@{ 
-            Name = "Disable Telemetry"; 
-            Selected = $false; 
-            ID = 5 
-        },
-        [PSCustomObject]@{ 
-            Name = "Disable Sync settings with Microsoft account"; 
-            Selected = $false; 
-            ID = 6 
-        },
-        [PSCustomObject]@{ 
-            Name = "Disable Background app access"; 
-            Selected = $false; 
-            ID = 7 
-        },
-        [PSCustomObject]@{ 
-            Name = "Disable unnecessary services"; 
-            Selected = $false; 
-            ID = 8 
-        },
-        [PSCustomObject]@{ 
-            Name = "Enable Hyper-V services (optional)"; 
-            Selected = $false; 
-            ID = 9 
-        },
-        [PSCustomObject]@{ 
-            Name = "Set execution policy to RemoteSigned"; 
-            Selected = $false; 
-            ID = 10 
-        }
-    )
-
-    # Selezione automatica se richiesta
-    if ($SelectAll) {
-        $options | ForEach-Object { $_.Selected = $true }
-        return $options
-    }
-
-    # Menu interattivo
-    $selectedItems = @()
-    $cursorPosition = 0
-    $exitKey = [ConsoleKey]::Enter
-
-    while ($true) {
-        Clear-Host
-        Write-Host "==============================================="
-        Write-Host "        DEBLOAT WINDOWS - SELEZIONE AZIONI      "
-        Write-Host "==============================================="
-        Write-Host "Spazio: Seleziona/Deseleziona   Invio: Conferma"
-        Write-Host "Esc: Annulla tutto              A: Seleziona Tutto"
-        Write-Host "===============================================`n"
-        
-        for ($i = 0; $i -lt $options.Count; $i++) {
-            $prefix = if ($i -eq $cursorPosition) { ">> " } else { "   " }
-            $checkbox = if ($options[$i].Selected) { "[X] " } else { "[ ] " }
-            Write-Host ("$prefix$checkbox$($options[$i].Name)")
-        }
-
-        $key = [Console]::ReadKey($true).Key
-
-        switch ($key) {
-            UpArrow { if ($cursorPosition -gt 0) { $cursorPosition-- } }
-            DownArrow { if ($cursorPosition -lt ($options.Count - 1)) { $cursorPosition++ } }
-            Spacebar {
-                $options[$cursorPosition].Selected = -not $options[$cursorPosition].Selected
-            }
-            A { $options | ForEach-Object { $_.Selected = $true } }
-            Escape { return @() }
-            Enter { 
-                return $options | Where-Object { $_.Selected } 
-            }
-        }
-    }
-}
-
-# ================================================
-# FUNZIONE SELEZIONE APP DA DISINSTALLARE
-# ================================================
-function Select-AppsToRemove {
-    $apps = @(
-        [PSCustomObject]@{ Name = "OneDrive"; Pattern = "*OneDrive*"; Critical = $true }
-        [PSCustomObject]@{ Name = "Microsoft Teams"; Pattern = "*Teams*"; Critical = $true }
-        [PSCustomObject]@{ Name = "Xbox e servizi gaming"; Pattern = "*Xbox*"; Critical = $false }
-        [PSCustomObject]@{ Name = "App di notizie e meteo"; Pattern = "*BingNews*;*BingWeather*"; Critical = $false }
-        [PSCustomObject]@{ Name = "App di feedback e assistenza"; Pattern = "*FeedbackHub*;*GetHelp*;*Getstarted*"; Critical = $false }
-        [PSCustomObject]@{ Name = "Your Phone"; Pattern = "*YourPhone*"; Critical = $false }
-        [PSCustomObject]@{ Name = "App di produttività"; Pattern = "*Todos*;*StickyNotes*;*Whiteboard*"; Critical = $false }
-        [PSCustomObject]@{ Name = "Media Player"; Pattern = "*ZuneMusic*;*ZuneVideo*"; Critical = $false }
-        [PSCustomObject]@{ Name = "Cortana e servizi vocali"; Pattern = "*Cortana*;*549981C3F5F10*"; Critical = $true }
-        [PSCustomObject]@{ Name = "TUTTE le app preinstallate"; Pattern = "FULL_REMOVE"; Critical = $true }
-    )
-
-    $selectedApps = @()
-    $cursorPosition = 0
-    $exitKey = [ConsoleKey]::Enter
-
-    while ($true) {
-        Clear-Host
-        Write-Host "==============================================="
-        Write-Host "     SELEZIONE APP DA DISINSTALLARE FORZATAMENTE"
-        Write-Host "==============================================="
-        Write-Host "Spazio: Seleziona/Deseleziona   Invio: Conferma"
-        Write-Host "Esc: Annulla                     A: Seleziona Tutto"
-        Write-Host "===============================================`n"
-        
-        for ($i = 0; $i -lt $apps.Count; $i++) {
-            $prefix = if ($i -eq $cursorPosition) { ">> " } else { "   " }
-            $checkbox = if ($apps[$i].Selected) { "[X] " } else { "[ ] " }
-            $critical = if ($apps[$i].Critical) { "(FORZATA) " } else { "" }
-            Write-Host ("$prefix$checkbox$critical$($apps[$i].Name)")
-        }
-
-        $key = [Console]::ReadKey($true).Key
-
-        switch ($key) {
-            UpArrow { if ($cursorPosition -gt 0) { $cursorPosition-- } }
-            DownArrow { if ($cursorPosition -lt ($apps.Count - 1)) { $cursorPosition++ } }
-            Spacebar {
-                $apps[$cursorPosition].Selected = -not $apps[$cursorPosition].Selected
-            }
-            A { $apps | ForEach-Object { $_.Selected = $true } }
-            Escape { return @() }
-            Enter { 
-                return $apps | Where-Object { $_.Selected } 
-            }
-        }
-    }
-}
+param()
 
 # ================================================
 # FUNZIONI DEBLOAT
@@ -233,10 +76,30 @@ function Uninstall-WindowsFeatures {
 }
 
 function Remove-PreInstalledBloatware {
-    $selectedApps = Select-AppsToRemove
-    
+    $apps = @(
+        [PSCustomObject]@{ Name = "OneDrive"; Pattern = "*OneDrive*"; Critical = $true }
+        [PSCustomObject]@{ Name = "Microsoft Teams"; Pattern = "*Teams*"; Critical = $true }
+        [PSCustomObject]@{ Name = "Xbox e servizi gaming"; Pattern = "*Xbox*"; Critical = $false }
+        [PSCustomObject]@{ Name = "App di notizie e meteo"; Pattern = "*BingNews*;*BingWeather*"; Critical = $false }
+        [PSCustomObject]@{ Name = "App di feedback e assistenza"; Pattern = "*FeedbackHub*;*GetHelp*;*Getstarted*"; Critical = $false }
+        [PSCustomObject]@{ Name = "Your Phone"; Pattern = "*YourPhone*"; Critical = $false }
+        [PSCustomObject]@{ Name = "App di produttività"; Pattern = "*Todos*;*StickyNotes*;*Whiteboard*"; Critical = $false }
+        [PSCustomObject]@{ Name = "Media Player"; Pattern = "*ZuneMusic*;*ZuneVideo*"; Critical = $false }
+        [PSCustomObject]@{ Name = "Cortana e servizi vocali"; Pattern = "*Cortana*;*549981C3F5F10*"; Critical = $true }
+        [PSCustomObject]@{ Name = "TUTTE le app preinstallate"; Pattern = "FULL_REMOVE"; Critical = $true }
+    )
+
+    $selectedApps = @()
+    Write-Host "`nSelezione app da rimuovere:"
+    foreach ($app in $apps) {
+        $choice = Read-Host "Vuoi rimuovere $($app.Name)? (s/n)"
+        if ($choice -eq 's') {
+            $selectedApps += $app
+        }
+    }
+
     if (-not $selectedApps) {
-        Write-Host "`nOperazione annullata. Nessuna app selezionata." -ForegroundColor Yellow
+        Write-Host "`nNessuna app selezionata per la rimozione." -ForegroundColor Yellow
         return
     }
     
@@ -474,28 +337,53 @@ if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
     exit
 }
 
-# Menu principale
-if (-not $AutoRun) {
-    Write-Host "==============================================="
-    Write-Host "          DEBLOAT WINDOWS - MENU PRINCIPALE    "
-    Write-Host "==============================================="
-    Write-Host "1. Esecuzione guidata (seleziona azioni)"
-    Write-Host "2. Esecuzione completa (tutte le azioni)"
-    Write-Host "3. Personalizza disinstallazione app"
-    Write-Host "4. Esci"
-    Write-Host "==============================================="
+# Definizione azioni disponibili
+$actions = @(
+    [PSCustomObject]@{ ID=1; Name="Disable unnecessary scheduled tasks"; Function={Disable-UnnecessaryScheduledTasks}; Sensitive=$false }
+    [PSCustomObject]@{ ID=2; Name="Uninstall Windows features"; Function={Uninstall-WindowsFeatures}; Sensitive=$true }
+    [PSCustomObject]@{ ID=3; Name="Remove pre-installed bloatware"; Function={Remove-PreInstalledBloatware}; Sensitive=$true }
+    [PSCustomObject]@{ ID=4; Name="Disable Windows Store Auto Update"; Function={Disable-WindowsStoreAutoUpdate}; Sensitive=$false }
+    [PSCustomObject]@{ ID=5; Name="Disable Telemetry"; Function={Disable-Telemetry}; Sensitive=$false }
+    [PSCustomObject]@{ ID=6; Name="Disable Sync settings with Microsoft account"; Function={Disable-SyncSettings}; Sensitive=$false }
+    [PSCustomObject]@{ ID=7; Name="Disable Background app access"; Function={Disable-BackgroundAppAccess}; Sensitive=$false }
+    [PSCustomObject]@{ ID=8; Name="Disable unnecessary services"; Function={Disable-UnnecessaryServices}; Sensitive=$true }
+    [PSCustomObject]@{ ID=9; Name="Enable Hyper-V services (optional)"; Function={Enable-HyperVServices}; Sensitive=$true }
+    [PSCustomObject]@{ ID=10; Name="Set execution policy to RemoteSigned"; Function={Set-ExecutionPolicyRemoteSigned}; Sensitive=$false }
+)
 
-    $choice = Read-Host "Scelta [1-4]"
-    switch ($choice) {
-        "1" { $selectedActions = Show-DebloatMenu }
-        "2" { $selectedActions = Show-DebloatMenu -SelectAll }
-        "3" { Remove-PreInstalledBloatware; exit }
-        "4" { exit }
-        default { exit }
+# Menu principale
+Write-Host "==============================================="
+Write-Host "          DEBLOAT WINDOWS - MENU PRINCIPALE    "
+Write-Host "==============================================="
+Write-Host "1. Esecuzione guidata (seleziona azioni)"
+Write-Host "2. Esecuzione completa (tutte le azioni)"
+Write-Host "3. Personalizza disinstallazione app"
+Write-Host "4. Esci"
+Write-Host "==============================================="
+
+$choice = Read-Host "Scelta [1-4]"
+switch ($choice) {
+    "1" {
+        # Modalità guidata: selezione singole azioni
+        $selectedActions = @()
+        foreach ($action in $actions) {
+            $choiceAction = Read-Host "Vuoi eseguire $($action.Name)? (s/n)"
+            if ($choiceAction -eq 's') {
+                $selectedActions += $action
+            }
+        }
     }
-}
-else {
-    $selectedActions = Show-DebloatMenu -SelectAll
+    "2" {
+        # Modalità completa: tutte le azioni
+        $selectedActions = $actions
+    }
+    "3" {
+        # Solo rimozione app
+        Remove-PreInstalledBloatware
+        exit
+    }
+    "4" { exit }
+    default { exit }
 }
 
 if (-not $selectedActions) {
@@ -505,18 +393,17 @@ if (-not $selectedActions) {
 
 # Esecuzione azioni selezionate
 foreach ($action in $selectedActions) {
-    switch ($action.ID) {
-        1 { Disable-UnnecessaryScheduledTasks }
-        2 { Uninstall-WindowsFeatures }
-        3 { Remove-PreInstalledBloatware }
-        4 { Disable-WindowsStoreAutoUpdate }
-        5 { Disable-Telemetry }
-        6 { Disable-SyncSettings }
-        7 { Disable-BackgroundAppAccess }
-        8 { Disable-UnnecessaryServices }
-        9 { Enable-HyperVServices }
-        10 { Set-ExecutionPolicyRemoteSigned }
+    # Richiesta conferma per azioni sensibili in modalità completa
+    if ($choice -eq "2" -and $action.Sensitive) {
+        $confirmation = Read-Host "`nAttenzione: $($action.Name). Continuare? (s/n)"
+        if ($confirmation -ne 's') {
+            Write-Host "`nSaltata azione: $($action.Name)" -ForegroundColor Yellow
+            continue
+        }
     }
+    
+    Write-Host "`nEsecuzione: $($action.Name)..." -ForegroundColor Cyan
+    & $action.Function
 }
 
 # Riavvio consigliato
