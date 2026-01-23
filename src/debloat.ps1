@@ -1,418 +1,243 @@
-param()
+<#
+.SYNOPSIS
+    Script per il debloating di Windows, ottimizzato per la massima compatibilità e pulizia.
+    Rimuove app preinstallate, disabilita task di telemetria e servizi non essenziali.
+.DESCRIPTION
+    Eseguire con privilegi di amministratore.
+#>
 
-# ================================================
-# FUNZIONI DEBLOAT
-# ================================================
-
-function Disable-UnnecessaryScheduledTasks {
-    $tasks = @(
-        "ProgramDataUpdater",
-        "Microsoft-Windows-DiskDiagnosticDataCollector",
-        "Microsoft-Windows-WER-Triggered",
-        "RegIdleBackup",
-        "DmClient",
-        "TileDataDownloader",
-        "RestartBPT",
-        "DownloadContentTask",
-        "AppIDManagement",
-        "Application Crash Telemetry",
-        "Autotune",
-        "AitAgent",
-        "XblGameSaveTask",
-        "StartupAppTask",
-        "WDI Run Downloader Task",
-        "WinSAT"
-    )
-    
-    Write-Host "`nDisabilitazione task pianificati non necessari..."
-    foreach ($task in $tasks) {
-        try {
-            Disable-ScheduledTask -TaskName $task -TaskPath '\Microsoft\Windows\' -ErrorAction Stop
-            Write-Host "  [OK] Task disabilitato: $task" -ForegroundColor Green
-        }
-        catch {
-            Write-Host "  [ERR] Impossibile disabilitare $task : $_" -ForegroundColor Red
-        }
-    }
-}
-
-function Uninstall-WindowsFeatures {
-    $features = @(
-        "Microsoft.BingWeather",
-        "Microsoft.GetHelp",
-        "Microsoft.Getstarted",
-        "Microsoft.HelpAndTips",
-        "Microsoft.Media.PlayReadyClient.2",
-        "Microsoft.MicrosoftSolitaireCollection",
-        "Microsoft.MicrosoftStickyNotes",
-        "Microsoft.OneConnect",
-        "Microsoft.OneSync",
-        "Microsoft.SkypeApp",
-        "Microsoft.WindowsAlarms",
-        "Microsoft.WindowsCamera",
-        "Microsoft.WindowsFeedbackHub",
-        "Microsoft.WindowsMaps",
-        "Microsoft.WindowsSoundRecorder",
-        "Microsoft.WindowsStore",
-        "Microsoft.Xbox.TCUI",
-        "Microsoft.XboxApp",
-        "Microsoft.XboxIdentityProvider",
-        "Microsoft.XboxSpeechToTextOverlay",
-        "Microsoft.ZuneMusic",
-        "Microsoft.ZuneVideo",
-        "Microsoft.OneDrive"
-    )
-    
-    Write-Host "`nDisinstallazione funzionalità Windows non necessarie..."
-    foreach ($feature in $features) {
-        try {
-            Get-WindowsCapability -Online -Name "*$feature*" | Remove-WindowsCapability -Online -ErrorAction Stop
-            Write-Host "  [OK] Funzionalità rimossa: $feature" -ForegroundColor Green
-        }
-        catch {
-            Write-Host "  [ERR] Impossibile rimuovere $feature : $_" -ForegroundColor Red
-        }
-    }
-}
-
-function Remove-PreInstalledBloatware {
-    $apps = @(
-        [PSCustomObject]@{ Name = "OneDrive"; Pattern = "*OneDrive*"; Critical = $true }
-        [PSCustomObject]@{ Name = "Microsoft Teams"; Pattern = "*Teams*"; Critical = $true }
-        [PSCustomObject]@{ Name = "Xbox e servizi gaming"; Pattern = "*Xbox*"; Critical = $false }
-        [PSCustomObject]@{ Name = "App di notizie e meteo"; Pattern = "*BingNews*;*BingWeather*"; Critical = $false }
-        [PSCustomObject]@{ Name = "App di feedback e assistenza"; Pattern = "*FeedbackHub*;*GetHelp*;*Getstarted*"; Critical = $false }
-        [PSCustomObject]@{ Name = "Your Phone"; Pattern = "*YourPhone*"; Critical = $false }
-        [PSCustomObject]@{ Name = "App di produttività"; Pattern = "*Todos*;*StickyNotes*;*Whiteboard*"; Critical = $false }
-        [PSCustomObject]@{ Name = "Media Player"; Pattern = "*ZuneMusic*;*ZuneVideo*"; Critical = $false }
-        [PSCustomObject]@{ Name = "Cortana e servizi vocali"; Pattern = "*Cortana*;*549981C3F5F10*"; Critical = $true }
-        [PSCustomObject]@{ Name = "TUTTE le app preinstallate"; Pattern = "FULL_REMOVE"; Critical = $true }
-    )
-
-    $selectedApps = @()
-    Write-Host "`nSelezione app da rimuovere:"
-    foreach ($app in $apps) {
-        $choice = Read-Host "Vuoi rimuovere $($app.Name)? (s/n)"
-        if ($choice -eq 's') {
-            $selectedApps += $app
-        }
-    }
-
-    if (-not $selectedApps) {
-        Write-Host "`nNessuna app selezionata per la rimozione." -ForegroundColor Yellow
-        return
-    }
-    
-    Write-Host "`nRimozione forzata app selezionate..."
-    
-    # Gestione OneDrive speciale
-    if ($selectedApps.Name -contains "OneDrive") {
-        Write-Host "`nDisinstallazione forzata OneDrive..." -ForegroundColor Cyan
-        try {
-            # Kill OneDrive process
-            Get-Process -Name OneDrive -ErrorAction SilentlyContinue | Stop-Process -Force
-            
-            # Uninstall OneDrive
-            if (Test-Path "$env:SystemRoot\SysWOW64\OneDriveSetup.exe") {
-                & "$env:SystemRoot\SysWOW64\OneDriveSetup.exe" /uninstall
-            } elseif (Test-Path "$env:SystemRoot\System32\OneDriveSetup.exe") {
-                & "$env:SystemRoot\System32\OneDriveSetup.exe" /uninstall
-            }
-            
-            # Cleanup
-            Remove-Item -Path "$env:USERPROFILE\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
-            Remove-Item -Path "$env:PROGRAMDATA\Microsoft OneDrive" -Recurse -Force -ErrorAction SilentlyContinue
-            
-            # Remove from startup
-            Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -ErrorAction SilentlyContinue
-            
-            Write-Host "  [OK] OneDrive rimosso completamente" -ForegroundColor Green
-        }
-        catch {
-            Write-Host "  [ERR] Disinstallazione OneDrive fallita: $_" -ForegroundColor Red
-        }
-    }
-    
-    # Gestione disinstallazione di massa
-    $fullRemove = $selectedApps.Name -contains "TUTTE le app preinstallate"
-    
-    foreach ($app in $selectedApps) {
-        if ($app.Name -in @("OneDrive", "TUTTE le app preinstallate")) { continue }
-        
-        Write-Host "`nDisinstallazione: $($app.Name)..." -ForegroundColor Cyan
-        
-        if ($app.Pattern -eq "FULL_REMOVE") {
-            try {
-                Get-AppxPackage -AllUsers | Remove-AppxPackage -ErrorAction Stop
-                Get-AppxProvisionedPackage -Online | Remove-AppxProvisionedPackage -Online -ErrorAction Stop
-                Write-Host "  [OK] Tutte le app rimosse" -ForegroundColor Green
-            }
-            catch {
-                Write-Host "  [ERR] Rimozione completa fallita: $_" -ForegroundColor Red
-            }
-        }
-        else {
-            $patterns = $app.Pattern -split ';'
-            foreach ($pattern in $patterns) {
-                try {
-                    # Remove for current and all users
-                    Get-AppxPackage -Name $pattern | Remove-AppxPackage -ErrorAction Stop
-                    
-                    # Remove provisioned packages
-                    Get-AppxProvisionedPackage -Online | 
-                        Where-Object DisplayName -Like $pattern | 
-                        Remove-AppxProvisionedPackage -Online -ErrorAction Stop
-                    
-                    Write-Host "  [OK] App rimosse: $pattern" -ForegroundColor Green
-                }
-                catch {
-                    Write-Host "  [ERR] Impossibile rimuovere $pattern : $_" -ForegroundColor Red
-                }
-            }
-            
-            # Pulizia aggiuntiva per app specifiche
-            switch ($app.Name) {
-                "Microsoft Teams" {
-                    try {
-                        Get-Process -Name Teams -ErrorAction SilentlyContinue | Stop-Process -Force
-                        Remove-Item -Path "$env:APPDATA\Microsoft\Teams" -Recurse -Force
-                        Remove-Item -Path "$env:LOCALAPPDATA\Microsoft\Teams" -Recurse -Force
-                        Write-Host "  [OK] Cache Teams pulita" -ForegroundColor Green
-                    }
-                    catch { }
-                }
-                "Xbox e servizi gaming" {
-                    try {
-                        Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name "AllowGameDVR" -Value 0
-                        Set-Service -Name XblAuthManager -StartupType Disabled
-                        Set-Service -Name XboxNetApiSvc -StartupType Disabled
-                        Stop-Service -Name XblAuthManager -Force
-                        Stop-Service -Name XboxNetApiSvc -Force
-                        Write-Host "  [OK] Servizi Xbox disabilitati" -ForegroundColor Green
-                    }
-                    catch { }
-                }
-            }
-        }
-    }
-}
-
-function Disable-WindowsStoreAutoUpdate {
-    Write-Host "`nDisabilitazione aggiornamenti automatici Microsoft Store..."
-    $WindowsStoreAutoUpdate = "HKLM:\SOFTWARE\Policies\Microsoft\WindowsStore"
-    
-    try {
-        if (-not (Test-Path $WindowsStoreAutoUpdate)) {
-            New-Item -Path $WindowsStoreAutoUpdate -Force | Out-Null
-        }
-        
-        Set-ItemProperty -Path $WindowsStoreAutoUpdate -Name "AutoDownload" -Value 2
-        Set-ItemProperty -Path $WindowsStoreAutoUpdate -Name "DisableOSUpgrade" -Value 1
-        Write-Host "  [OK] Aggiornamenti automatici disabilitati" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "  [ERR] Impossibile disabilitare: $_" -ForegroundColor Red
-    }
-}
-
-function Disable-Telemetry {
-    Write-Host "`nDisabilitazione telemetria..."
-    $TelemetrySettings = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection"
-    
-    try {
-        if (-not (Test-Path $TelemetrySettings)) {
-            New-Item -Path $TelemetrySettings -Force | Out-Null
-        }
-        
-        Set-ItemProperty -Path $TelemetrySettings -Name "AllowTelemetry" -Value 0
-        Write-Host "  [OK] Telemetria disabilitata" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "  [ERR] Impossibile disabilitare: $_" -ForegroundColor Red
-    }
-}
-
-function Disable-SyncSettings {
-    Write-Host "`nDisabilitazione sincronizzazione impostazioni..."
-    $SyncSettings = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\SettingSync"
-    
-    try {
-        if (-not (Test-Path $SyncSettings)) {
-            New-Item -Path $SyncSettings -Force | Out-Null
-        }
-        
-        Set-ItemProperty -Path $SyncSettings -Name "DisableSettingSync" -Value 2
-        Set-ItemProperty -Path $SyncSettings -Name "DisableSettingSyncUserOverride" -Value 1
-        Write-Host "  [OK] Sincronizzazione disabilitata" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "  [ERR] Impossibile disabilitare: $_" -ForegroundColor Red
-    }
-}
-
-function Disable-BackgroundAppAccess {
-    Write-Host "`nDisabilitazione app in background..."
-    $BackgroundApps = "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications"
-    
-    try {
-        if (-not (Test-Path $BackgroundApps)) {
-            New-Item -Path $BackgroundApps -Force | Out-Null
-        }
-        
-        Get-ChildItem -Path $BackgroundApps | ForEach-Object {
-            Set-ItemProperty -Path $_.PsPath -Name "Disabled" -Value 1
-            Set-ItemProperty -Path $_.PsPath -Name "DisabledByUser" -Value 1
-        }
-        Write-Host "  [OK] App in background disabilitate" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "  [ERR] Impossibile disabilitare: $_" -ForegroundColor Red
-    }
-}
-
-function Disable-UnnecessaryServices {
-    $services = @(
-        "diagnosticshub.standardcollector.service",
-        "DiagTrack",
-        "dmwappushservice",
-        "SysMain",
-        "wificx",
-        "wifinudmgr"
-    )
-    
-    Write-Host "`nDisabilitazione servizi non necessari..."
-    foreach ($service in $services) {
-        try {
-            Set-Service -Name $service -StartupType Disabled -Status Stopped -ErrorAction Stop
-            Write-Host "  [OK] Servizio disabilitato: $service" -ForegroundColor Green
-        }
-        catch {
-            Write-Host "  [ERR] Impossibile disabilitare $service : $_" -ForegroundColor Red
-        }
-    }
-}
-
-function Enable-HyperVServices {
-    $HyperVServices = @(
-        "vmicheartbeat",
-        "vmicguestinterface",
-        "vmicshutdown",
-        "vmicvmsession",
-        "vmicrdv",
-        "vmictimesync"
-    )
-    
-    Write-Host "`nAbilitazione servizi Hyper-V..."
-    foreach ($service in $HyperVServices) {
-        try {
-            Set-Service -Name $service -StartupType Automatic -Status Running -ErrorAction Stop
-            Write-Host "  [OK] Servizio abilitato: $service" -ForegroundColor Green
-        }
-        catch {
-            Write-Host "  [ERR] Impossibile abilitare $service : $_" -ForegroundColor Red
-        }
-    }
-}
-
-function Set-ExecutionPolicyRemoteSigned {
-    Write-Host "`nImpostazione criteri di esecuzione..."
-    try {
-        Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser -Force
-        Write-Host "  [OK] Criteri impostati a RemoteSigned" -ForegroundColor Green
-    }
-    catch {
-        Write-Host "  [ERR] Impossibile impostare criteri: $_" -ForegroundColor Red
-    }
-}
-
-# ================================================
-# ESECUZIONE PRINCIPALE
-# ================================================
-
-# Verifica privilegi amministrativi
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "Richiesta privilegi amministrativi..."
-    Start-Process PowerShell -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -Verb RunAs
-    exit
-}
-
-# Definizione azioni disponibili
-$actions = @(
-    [PSCustomObject]@{ ID=1; Name="Disable unnecessary scheduled tasks"; Function={Disable-UnnecessaryScheduledTasks}; Sensitive=$false }
-    [PSCustomObject]@{ ID=2; Name="Uninstall Windows features"; Function={Uninstall-WindowsFeatures}; Sensitive=$true }
-    [PSCustomObject]@{ ID=3; Name="Remove pre-installed bloatware"; Function={Remove-PreInstalledBloatware}; Sensitive=$true }
-    [PSCustomObject]@{ ID=4; Name="Disable Windows Store Auto Update"; Function={Disable-WindowsStoreAutoUpdate}; Sensitive=$false }
-    [PSCustomObject]@{ ID=5; Name="Disable Telemetry"; Function={Disable-Telemetry}; Sensitive=$false }
-    [PSCustomObject]@{ ID=6; Name="Disable Sync settings with Microsoft account"; Function={Disable-SyncSettings}; Sensitive=$false }
-    [PSCustomObject]@{ ID=7; Name="Disable Background app access"; Function={Disable-BackgroundAppAccess}; Sensitive=$false }
-    [PSCustomObject]@{ ID=8; Name="Disable unnecessary services"; Function={Disable-UnnecessaryServices}; Sensitive=$true }
-    [PSCustomObject]@{ ID=9; Name="Enable Hyper-V services (optional)"; Function={Enable-HyperVServices}; Sensitive=$true }
-    [PSCustomObject]@{ ID=10; Name="Set execution policy to RemoteSigned"; Function={Set-ExecutionPolicyRemoteSigned}; Sensitive=$false }
+$tasks = @(
+    "ProgramDataUpdater",
+    "Microsoft-Windows-DiskDiagnosticDataCollector",
+    "Microsoft-Windows-WER-Triggered",
+    "RegIdleBackup",
+    "DmClient",
+    "TileDataDownloader",
+    "RestartBPT",
+    "DownloadContentTask",
+    "AppIDManagement",
+    "Application Crash Telemetry",
+    "Autotune",
+    "AitAgent",
+    "XblGameSaveTask",
+    "StartupAppTask",
+    "WDI Run Downloader Task",
+    "WinSAT"
 )
 
-# Menu principale
-Write-Host "==============================================="
-Write-Host "          DEBLOAT WINDOWS - MENU PRINCIPALE    "
-Write-Host "==============================================="
-Write-Host "1. Esecuzione guidata (seleziona azioni)"
-Write-Host "2. Esecuzione completa (tutte le azioni)"
-Write-Host "3. Personalizza disinstallazione app"
-Write-Host "4. Esci"
-Write-Host "==============================================="
+Write-Host "[*] Disabilitazione dei task pianificati per la telemetria..." -ForegroundColor Yellow
+foreach ($task in $tasks) {
+    try {
+        Get-ScheduledTask -TaskName $task -ErrorAction SilentlyContinue | Disable-ScheduledTask -ErrorAction SilentlyContinue
+        Write-Host "  - Task '$task' disabilitato." -ForegroundColor Green
+    }
+    catch {
+        Write-Host "  - Impossibile disabilitare il task '$task'. Potrebbe non esistere. (Errore: $_)" -ForegroundColor Red
+    }
+}
 
-$choice = Read-Host "Scelta [1-4]"
-switch ($choice) {
-    "1" {
-        # Modalità guidata: selezione singole azioni
-        $selectedActions = @()
-        foreach ($action in $actions) {
-            $choiceAction = Read-Host "Vuoi eseguire $($action.Name)? (s/n)"
-            if ($choiceAction -eq 's') {
-                $selectedActions += $action
+# ===================================================================
+# === RIMOZIONE APP PREINSTALLATE (BLOATWARE) ===
+# ===================================================================
+
+# Lista di app considerate bloatware e generalmente sicure da rimuovere
+$bloatwareApps = @(
+    "Microsoft.BingNews",
+    "Microsoft.GetHelp",
+    "Microsoft.Getstarted",
+    "Microsoft.MicrosoftSolitaireCollection",
+    "Microsoft.WindowsFeedbackHub",
+    "Microsoft.WindowsMaps",
+    "Microsoft.ZuneMusic",
+    "Microsoft.ZuneVideo",
+    "Microsoft.People"
+)
+
+# Lista di app che alcuni utenti potrebbero trovare utili. Verrà chiesta conferma prima della rimozione.
+$potentiallyUsefulApps = @(
+    "Microsoft.549981C3F5F10",                # Cortana
+    "Microsoft.BingWeather",                  # Meteo
+    "Microsoft.MicrosoftStickyNotes",         # Sticky Notes
+    "Microsoft.SkypeApp",                     # Skype
+    "Microsoft.WindowsAlarms",                # Sveglie e Orologio
+    "Microsoft.WindowsCamera",                # Fotocamera
+    "Microsoft.WindowsSoundRecorder",         # Registratore di suoni
+    "Microsoft.YourPhone",                    # Collegamento al telefono
+    "Microsoft.Todos",                        # Microsoft To Do
+    "Microsoft.OutlookForWindows",            # Il nuovo Outlook
+    "MicrosoftTeams",                         # Microsoft Teams
+    "Microsoft.WindowsCommunicationsApps",    # Posta e Calendario
+    "MicrosoftCorporationII.MicrosoftFamily", # Microsoft Family Safety
+    "MicrosoftCorporationII.QuickAssist",     # Assistenza rapida
+    "Microsoft.Xbox.TCUI",
+    "Microsoft.XboxApp",
+    "Microsoft.XboxIdentityProvider",
+    "Microsoft.XboxSpeechToTextOverlay",
+    "Microsoft.XboxGameOverlay",
+    "Microsoft.XboxGamingOverlay"
+)
+
+# Rimuove sempre il bloatware comune
+Write-Host "`n[*] Rimozione delle App bloatware comuni..." -ForegroundColor Yellow
+foreach ($app in $bloatwareApps) {
+    try {
+        $packages = Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue
+        if ($packages) {
+            foreach ($package in $packages) {
+                # Tenta di fermare i processi associati al pacchetto prima della rimozione
+                try {
+                    $manifestPath = Join-Path $package.InstallLocation 'AppxManifest.xml'
+                    if (Test-Path $manifestPath) {
+                        [xml]$manifest = Get-Content -Path $manifestPath
+                        foreach ($application in $manifest.Package.Applications.Application) {
+                            if ($application.Executable) {
+                                $processName = [System.IO.Path]::GetFileNameWithoutExtension($application.Executable)
+                                Get-Process -Name $processName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+                            }
+                        }
+                    }
+                } catch {} # Ignora errori, il processo potrebbe non essere in esecuzione
+                $package | Remove-AppxPackage -AllUsers -ErrorAction Stop
             }
+            Write-Host "  - App '$app' rimossa." -ForegroundColor Green
         }
     }
-    "2" {
-        # Modalità completa: tutte le azioni
-        $selectedActions = $actions
+    catch {
+        Write-Host "  - Impossibile rimuovere l'app '$app'. Potrebbe essere gia' stata rimossa. (Errore: $_)" -ForegroundColor DarkGray
     }
-    "3" {
-        # Solo rimozione app
-        Remove-PreInstalledBloatware
-        exit
-    }
-    "4" { exit }
-    default { exit }
 }
 
-if (-not $selectedActions) {
-    Write-Host "`nOperazione annullata. Nessuna azione selezionata." -ForegroundColor Yellow
-    exit
-}
+# Chiede all'utente se vuole rimuovere le app potenzialmente utili
+Write-Host ""
+$title = "Rimozione App Potenzialmente Utili"
+$message = "Vuoi rimuovere anche le app potenzialmente utili (es. Fotocamera, Sticky Notes, Xbox, Posta, Collegamento al Telefono)?"
+$choices = [System.Management.Automation.Host.ChoiceDescription[]]@(
+    New-Object System.Management.Automation.Host.ChoiceDescription("&Si", "Rimuove le app aggiuntive.")
+    New-Object System.Management.Automation.Host.ChoiceDescription("&No", "Mantiene queste app installate.")
+)
+$decision = $Host.UI.PromptForChoice($title, $message, $choices, 1)
 
-# Esecuzione azioni selezionate
-foreach ($action in $selectedActions) {
-    # Richiesta conferma per azioni sensibili in modalità completa
-    if ($choice -eq "2" -and $action.Sensitive) {
-        $confirmation = Read-Host "`nAttenzione: $($action.Name). Continuare? (s/n)"
-        if ($confirmation -ne 's') {
-            Write-Host "`nSaltata azione: $($action.Name)" -ForegroundColor Yellow
-            continue
+if ($decision -eq 0) {
+    Write-Host "`n[*] Rimozione delle App potenzialmente utili..." -ForegroundColor Yellow
+    foreach ($app in $potentiallyUsefulApps) {
+        try {
+            $packages = Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue
+            if ($packages) {
+                foreach ($package in $packages) {
+                    # Tenta di fermare i processi associati al pacchetto prima della rimozione
+                    try {
+                        $manifestPath = Join-Path $package.InstallLocation 'AppxManifest.xml'
+                        if (Test-Path $manifestPath) {
+                            [xml]$manifest = Get-Content -Path $manifestPath
+                            foreach ($application in $manifest.Package.Applications.Application) {
+                                if ($application.Executable) {
+                                    $processName = [System.IO.Path]::GetFileNameWithoutExtension($application.Executable)
+                                    Get-Process -Name $processName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+                                }
+                            }
+                        }
+                    } catch {} # Ignora errori, il processo potrebbe non essere in esecuzione
+                    $package | Remove-AppxPackage -AllUsers -ErrorAction Stop
+                }
+                Write-Host "  - App '$app' rimossa." -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "  - Impossibile rimuovere l'app '$app'. Potrebbe essere gia' stata rimossa. (Errore: $_)" -ForegroundColor DarkGray
         }
     }
-    
-    Write-Host "`nEsecuzione: $($action.Name)..." -ForegroundColor Cyan
-    & $action.Function
 }
 
-# Riavvio consigliato
-Write-Host "`n==============================================="
-Write-Host "          OPERAZIONI COMPLETATE CON SUCCESSO     "
-Write-Host "==============================================="
-Write-Host "Alcune modifiche richiedono il riavvio del sistema"
-$choice = Read-Host "Riavviare ora? (s/n)"
-if ($choice -eq "s") {
-    Write-Host "Riavvio in corso..."
-    Start-Process "shutdown.exe" -ArgumentList "/r /t 5 /c ""Riavvio post-ottimizzazione"""
+$services = @(
+    "diagnosticshub.standardcollector.service",
+    "DiagTrack",
+    "dmwappushservice"
+)
+
+Write-Host "`n[*] Disabilitazione dei servizi di telemetria e non essenziali..." -ForegroundColor Yellow
+foreach ($service in $services) {
+    try {
+        Set-Service -Name $service -StartupType Disabled -ErrorAction Stop
+        Stop-Service -Name $service -Force -ErrorAction SilentlyContinue
+        Write-Host "  - Servizio '$service' disabilitato e interrotto." -ForegroundColor Green
+    }
+    catch {
+        Write-Host "  - Impossibile disabilitare il servizio '$service'. Potrebbe non esistere. (Errore: $_)" -ForegroundColor Red
+    }
 }
+
+# Disabilitazione condizionale di SysMain (Superfetch) in base al tipo di disco
+try {
+    $systemDrive = Get-PhysicalDisk | Where-Object { $_.DeviceID -match (Get-Partition | Where-Object { $_.DriveLetter -eq 'C' }).DiskNumber }
+    if ($systemDrive.MediaType -eq 'SSD') {
+        Write-Host "`n[*] Rilevato SSD come disco di sistema. Disabilitazione di SysMain (Superfetch)..." -ForegroundColor Yellow
+        Set-Service -Name "SysMain" -StartupType Disabled -ErrorAction Stop
+        Stop-Service -Name "SysMain" -Force -ErrorAction SilentlyContinue
+        Write-Host "  - Servizio 'SysMain' disabilitato e interrotto." -ForegroundColor Green
+    } else {
+        Write-Host "`n[*] Rilevato HDD come disco di sistema. Il servizio SysMain (Superfetch) verra' mantenuto attivo." -ForegroundColor Cyan
+    }
+} catch {
+    Write-Host "`n- Impossibile determinare il tipo di disco o gestire il servizio SysMain. (Errore: $_)" -ForegroundColor Red
+}
+
+# Importazione file di registro (se esiste)
+$regFile = "fotoenable.reg"
+if (Test-Path $regFile) {
+    Write-Host "`n[*] Importazione del file di registro '$regFile'..." -ForegroundColor Yellow
+    try {
+        reg.exe import $regFile
+        Write-Host "  - File di registro importato con successo." -ForegroundColor Green
+    } catch {
+        Write-Host "  - Errore durante l'importazione del file di registro. (Errore: $_)" -ForegroundColor Red
+    }
+}
+
+# ===================================================================
+# === RIMOZIONE COMPLETA DI ONEDRIVE ===
+# ===================================================================
+Write-Host "`n[*] Tentativo di rimozione completa di OneDrive..." -ForegroundColor Yellow
+
+try {
+    # 1. Termina tutti i processi di OneDrive
+    Write-Host "  - Interruzione dei processi di OneDrive in esecuzione..."
+    Stop-Process -Name "OneDrive" -Force -ErrorAction SilentlyContinue
+    taskkill.exe /F /IM OneDrive.exe > $null 2>&1
+
+    # 2. Esegui lo script di disinstallazione di OneDrive
+    Write-Host "  - Esecuzione dello script di disinstallazione..."
+    $oneDriveSetupPath32 = "$env:SystemRoot\System32\OneDriveSetup.exe"
+    $oneDriveSetupPath64 = "$env:SystemRoot\SysWOW64\OneDriveSetup.exe"
+
+    if (Test-Path $oneDriveSetupPath64) {
+        Start-Process -FilePath $oneDriveSetupPath64 -ArgumentList "/uninstall /silent /force" -Wait
+    }
+    elseif (Test-Path $oneDriveSetupPath32) {
+        Start-Process -FilePath $oneDriveSetupPath32 -ArgumentList "/uninstall /silent /force" -Wait
+    }
+    else {
+        Write-Host "  - OneDriveSetup.exe non trovato. Potrebbe essere gia' stato rimosso." -ForegroundColor Cyan
+    }
+
+    # Attendi un istante e termina di nuovo i processi
+    Start-Sleep -Seconds 5
+    Stop-Process -Name "OneDrive" -Force -ErrorAction SilentlyContinue
+    taskkill.exe /F /IM OneDrive.exe > $null 2>&1
+
+    # 3. Rimuovi le chiavi di registro per l'integrazione con Esplora File e avvio automatico
+    Write-Host "  - Rimozione delle chiavi di registro residue..."
+    Remove-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "OneDrive" -ErrorAction SilentlyContinue -Force
+    Remove-Item -Path "HKCR:\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}" -Recurse -ErrorAction SilentlyContinue -Force
+    Remove-Item -Path "HKCR:\Wow6432Node\CLSID\{018D5C66-4533-4307-9B53-224DE2ED1FE6}" -Recurse -ErrorAction SilentlyContinue -Force
+
+    # 4. Rimuovi le cartelle residue di OneDrive
+    Write-Host "  - Rimozione delle cartelle residue..."
+    "$env:USERPROFILE\OneDrive", "$env:LOCALAPPDATA\Microsoft\OneDrive", "$env:PROGRAMDATA\Microsoft OneDrive", "C:\OneDriveTemp" | ForEach-Object {
+        if (Test-Path $_) { Remove-Item -Path $_ -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    Write-Host "  - Rimozione di OneDrive completata." -ForegroundColor Green
+}
+catch {
+    Write-Host "  - Si e' verificato un errore durante la rimozione di OneDrive. (Errore: $_)" -ForegroundColor Red
+}
+
+Write-Host "`n[OK] Script di debloating completato." -ForegroundColor Cyan
