@@ -32,7 +32,9 @@ Seleziona "Esegui come amministratore".
 PowerShell (reg.ps1): Se hai problemi ad eseguire lo script .ps1, potresti dover abilitare l'esecuzione degli script su PowerShell: apri PowerShell come amministratore e digita:
 
 PowerShell
-Set-ExecutionPolicy RemoteSigned
+   ```bash
+      Set-ExecutionPolicy RemoteSigned
+
 ⚠️ Disclaimer
 Questo software è fornito "così com'è", senza garanzie di alcun tipo. L'autore non è responsabile per eventuali danni, perdita di dati o malfunzionamenti del sistema derivanti dall'uso di questi script.
 
