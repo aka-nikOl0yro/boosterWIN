@@ -19,10 +19,10 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
 ## 🛠️ Installazione e Utilizzo
 
 1. **Scarica il progetto:**
-   Puoi scaricare l'intero repository come file ZIP o clonarlo con Git:
+   Puoi scaricare l'ultimo relase (consigliato) oppure l'intero repository come file ZIP o clonarlo con Git:
    ```bash
    git clone [https://github.com/aka-nikOl0yro/boosterWIN.git](https://github.com/aka-nikOl0yro/boosterWIN.git)
-''' oppure scarica l'ultimo relase (consigliato)
+
 Esegui come Amministratore: Per funzionare correttamente, la maggior parte di questi script richiede privilegi elevati.
 
 Clicca con il tasto destro sul file che desideri eseguire (es. PUSHME.bat).
