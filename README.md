@@ -10,11 +10,11 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
 
 | File | Descrizione |
 | :--- | :--- |
-| **`PUSHME.bat`** | 🟢 **Script Principale**. Probabilmente il punto di partenza consigliato per eseguire le ottimizzazioni in sequenza o accedere a un menu. |
-| **`CCleaner.bat`** | 🧹 **Pulizia Sistema**. Script per la rimozione di file temporanei, cache, log inutili e altra "spazzatura" per liberare spazio su disco. |
-| **`Internet.bat`** | 🌐 **Ottimizzazione Rete**. Script dedicato al miglioramento della connessione internet (flush DNS, reset TCP/IP, ecc.). |
+| **`PUSHME.bat`** | 🟢 **Script Principale**. Il punto di partenza consigliato per eseguire le ottimizzazioni in sequenza. |
+| **`CCleaner.bat`** | 🧹 **Pulizia Sistema**. Script per la rimozione di file temporanei, log inutili e altra "spazzatura" per liberare spazio su disco. |
+| **`Internet.bat`** | 🌐 **Ottimizzazione Rete**. Script dedicato al miglioramento della connessione internet. |
 | **`reg.ps1`** | ⚙️ **Registry Tweaks**. Script PowerShell che applica modifiche al registro di sistema per migliorare le prestazioni e la reattività di Windows. |
-| **`icon.bat`** | 🎨 **Icone**. Script di utilità per la gestione o il ripristino delle icone/cache delle icone. |
+| **`icon.bat`** |  Script di utilità per creare un collegamento per il ccleaner. |
 
 ## 🛠️ Installazione e Utilizzo
 
@@ -22,6 +22,7 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
    Puoi scaricare l'intero repository come file ZIP o clonarlo con Git:
    ```bash
    git clone [https://github.com/aka-nikOl0yro/boosterWIN.git](https://github.com/aka-nikOl0yro/boosterWIN.git)
+''' oppure scarica l'ultimo relase (consigliato)
 Esegui come Amministratore: Per funzionare correttamente, la maggior parte di questi script richiede privilegi elevati.
 
 Clicca con il tasto destro sul file che desideri eseguire (es. PUSHME.bat).
