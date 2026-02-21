@@ -10,7 +10,7 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
 
 | File | Descrizione |
 | :--- | :--- |
-| **`PUSHME.bat`** | 🟢 **Script Principale**. Il punto di partenza consigliato per eseguire le ottimizzazioni in sequenza. |
+| **`PUSHME.bat` o 'avviaReg.bat'** | 🟢 **Starter**. Il punto di partenza consigliato per eseguire le ottimizzazioni in sequenza. |
 | **`CCleaner.bat`** | 🧹 **Pulizia Sistema**. Script per la rimozione di file temporanei, log inutili e altra "spazzatura" per liberare spazio su disco. |
 | **`Internet.bat`** | 🌐 **Ottimizzazione Rete**. Script dedicato al miglioramento della connessione internet. |
 | **`reg.ps1`** | ⚙️ **Registry Tweaks**. Script PowerShell che applica modifiche al registro di sistema per migliorare le prestazioni e la reattività di Windows. |
