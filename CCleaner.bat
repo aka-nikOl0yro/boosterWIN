@@ -280,8 +280,18 @@ $ButtonClean.Add_Click({
                     $SizeBefore = Get-FolderSize $Path
                     $CountBefore = Get-FileCount $Path
                     
-                    cmd /c "del /f /s /q `"$Path\*.*`" >nul 2>&1"
-                    cmd /c "for /d %i in (`"$Path\*`") do rmdir /s /q `"%i`" >nul 2>&1"
+                    # Calcola la data limite: elimina solo i file più vecchi di 24 ore (1 giorno)
+					$limitDate = (Get-Date).AddDays(-1)
+
+					# Elimina i file in modo sicuro controllando l'età
+					Get-ChildItem -Path $Path -Recurse -File -Force -ErrorAction SilentlyContinue |
+						Where-Object { $_.LastWriteTime -lt $limitDate } |
+						Remove-Item -Force -ErrorAction SilentlyContinue
+
+					# Pulisce le sottocartelle rimaste vuote
+					Get-ChildItem -Path $Path -Recurse -Directory -Force -ErrorAction SilentlyContinue |
+						Where-Object { (Get-ChildItem -Path $_.FullName -Force -ErrorAction SilentlyContinue).Count -eq 0 } |
+						Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
                     
                     $SizeAfter = Get-FolderSize $Path
                     $CountAfter = Get-FileCount $Path

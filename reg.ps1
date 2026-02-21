@@ -29,7 +29,7 @@ Push-Location -Path $PSScriptRoot
 # === VARIABILI PER PROGRESSO ===
 # ===================================================================
 # Aggiornare se si aggiungono/rimuovono sezioni principali di ottimizzazione
-$TOTAL_STEPS = 14 
+$TOTAL_STEPS = 24 
 $CURRENT_STEP = 0
 
 function Write-ProgressMessage {
@@ -46,12 +46,12 @@ function Show-MenuChoice {
     param(
         [string]$Question,
         [string]$Details,
-        [bool]$DefaultChoice = $true # $true per 'Sì', $false per 'No'
+        [bool]$DefaultChoice = $true # $true per 'Si', $false per 'No'
     )
 
     $title = "Personalizzazione Ottimizzazioni"
     $message = $Question
-    $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Sì", "Applica questa ottimizzazione."
+    $yes = New-Object System.Management.Automation.Host.ChoiceDescription "&Si", "Applica questa ottimizzazione."
     $no = New-Object System.Management.Automation.Host.ChoiceDescription "&No", "Salta questa ottimizzazione."
     $detail = New-Object System.Management.Automation.Host.ChoiceDescription "&Dettagli", "Mostra pro e contro di questa ottimizzazione."
     $choices = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no, $detail)
@@ -80,21 +80,30 @@ function Show-MenuChoice {
 # === MENU DI PERSONALIZZAZIONE ===
 # ===================================================================
 Clear-Host
+
+# --- AGGIUNTA FONDAMENTALE INIZIO ---
+$osInfo = Get-CimInstance Win32_OperatingSystem
+$buildNumber = [int]$osInfo.BuildNumber
+$isWin11 = $buildNumber -ge 22000
+$winVersionName = if ($isWin11) { "Windows 11" } else { "Windows 10" }
+# --- AGGIUNTA FONDAMENTALE FINE ---
+
 Write-Host "===================================================================" -ForegroundColor Green
 Write-Host "=== MENU DI PERSONALIZZAZIONE DELLE OTTIMIZZAZIONI ===" -ForegroundColor White
+Write-Host "=== Sistema Rilevato: $winVersionName ===" -ForegroundColor Yellow 
 Write-Host "===================================================================" -ForegroundColor Green
-Write-Host "Rispondi 'Sì' o 'No' alle seguenti domande per personalizzare lo script."
+Write-Host "Rispondi 'Si' o 'No' alle seguenti domande per personalizzare lo script."
 Write-Host "Per ogni opzione, puoi scegliere 'Dettagli' per visualizzare una descrizione."
 Write-Host ""
 
 $Tweaks = @{
-    APPLY_WINUPDATE_TWEAK         = Show-MenuChoice -Question "Disattivare Windows Update automatico (sconsigliato)?" -DefaultChoice $false -Details @"
+    APPLY_WINUPDATE_TWEAK         = Show-MenuChoice -Question "Bloccare l'installazione di DRIVER tramite Windows Update?" -DefaultChoice $true -Details @"
 PRO:
-- Hai il controllo completo su quando scaricare e installare gli aggiornamenti.
-- Evita riavvii inaspettati o cali di performance dovuti ad aggiornamenti in background.
+- Windows Update scarichera' SOLO patch di sicurezza e aggiornamenti per Defender.
+- Impedisce a Windows di sovrascrivere i tuoi driver (GPU, Audio) con versioni generiche o vecchie.
+- Mantieni il sistema sicuro senza rischiare instabilita' hardware.
 CONTRO:
-- [RISCHIO SICUREZZA] Non riceverai patch di sicurezza critiche automaticamente.
-- Richiede una gestione manuale costante per mantenere il sistema sicuro.
+- Dovrai aggiornare i driver manualmente (es. tramite sito NVIDIA/AMD o sito del produttore).
 "@
 	APPLY_DISABLE_WUDO            = Show-MenuChoice -Question "Disattivare Ottimizzazione Recapito (P2P Updates)?" -DefaultChoice $true -Details @"
 PRO:
@@ -118,19 +127,12 @@ PRO:
 CONTRO:
 - Potresti non vedere alcuni suggerimenti di app o funzionalita' di Microsoft (molto raro).
 "@
-    APPLY_CLASSIC_CONTEXT_MENU    = Show-MenuChoice -Question "Ripristinare il menu contestuale classico di Windows 10?" -DefaultChoice $true -Details @"
+APPLY_DISABLE_GAMEBAR         = Show-MenuChoice -Question "Disattivare COMPLETAMENTE la Game Bar e DVR?" -DefaultChoice $false -Details @"
 PRO:
-- Mostra immediatamente tutte le opzioni disponibili, senza il passaggio 'Mostra altre opzioni'.
-- Migliora notevolmente la velocita' di lavoro per gli utenti esperti.
+- Libera risorse se non registri clip di gioco.
 CONTRO:
-- Perdi il nuovo menu contestuale di Windows 11, piu' minimale ma meno funzionale.
-"@
-    APPLY_CLASSIC_RIBBON          = Show-MenuChoice -Question "Attivare l'interfaccia 'ribbon' classica in Esplora File?" -DefaultChoice $true -Details @"
-PRO:
-- Ripristina la barra multifunzione completa e ricca di funzionalita' di Windows 10.
-- Offre accesso diretto a molti piu' comandi rispetto alla nuova barra semplificata.
-CONTRO:
-- Perdi la nuova barra dei comandi di Windows 11, piu' pulita ma con meno opzioni visibili.
+- [ATTENZIONE] Rompe le funzionalita' Xbox, l'invito agli amici nei giochi e la registrazione clip.
+- Se usi il controller Xbox o giochi cross-platform, rispondi NO.
 "@
     APPLY_DISABLE_LOCKSCREEN_BLUR = Show-MenuChoice -Question "Disattivare l'effetto sfocatura sulla schermata di blocco?" -DefaultChoice $true -Details @"
 PRO:
@@ -158,24 +160,26 @@ PRO:
 CONTRO:
 - Perdi l'accesso rapido all'assistente AI Copilot e ad altre future integrazioni AI.
 "@
-    APPLY_BLOCK_EDGE_CHAT         = Show-MenuChoice -Question "Bloccare la reinstallazione automatica di Edge e Chat?" -DefaultChoice $true -Details @"
+APPLY_RAM_SCHEDULER           = Show-MenuChoice -Question "Installare 'RAM Cleaner' automatico (Task Pianificato)?" -DefaultChoice $true -Details @"
 PRO:
-- Impedisce a Windows Update di reinstallare forzatamente Microsoft Edge o l'app Chat.
-- Utile se si preferisce usare browser o app di messaggistica alternativi.
+- Crea uno script che svuota la 'Working Set' della RAM ogni 5 minuti.
+- Mantiene il sistema reattivo liberando memoria da app pesanti (Discord, Spotify, Browser).
+- Funziona in background in modo invisibile.
 CONTRO:
-- Nessuno, se non si utilizzano questi specifici programmi Microsoft.
+- Aggiunge un task pianificato al sistema.
 "@
-    APPLY_BYPASS_CHECKS           = Show-MenuChoice -Question "Applicare Bypass dei requisiti di sistema (TPM, Secure Boot)?" -DefaultChoice $true -Details @"
+    APPLY_MULTITASKING_TWEAK      = Show-MenuChoice -Question "Ottimizzare il Multitasking (Snap Assist, Alt+Tab, Focus)?" -DefaultChoice $true -Details @"
 PRO:
-- Permette di installare o aggiornare Windows 11 su hardware non ufficialmente supportato.
+- Disabilita i suggerimenti fastidiosi quando sposti le finestre (Snap Assist).
+- Alt+Tab mostra SOLO le finestre aperte (niente schede Edge).
+- Impedisce alle app in background di rubare il focus mentre scrivi o giochi.
 CONTRO:
-- Microsoft potrebbe in futuro negare aggiornamenti a sistemi non conformi.
-- Si disattivano controlli pensati per migliorare la sicurezza del sistema.
+- Perdi le funzionalita' di layout finestre 'intelligente' di Windows 11.
 "@
-    APPLY_KERNEL_TWEAKS           = Show-MenuChoice -Question "Applicare ottimizzazioni Kernel avanzate (Timer/Heap)?" -DefaultChoice $true -Details @"
+    APPLY_KERNEL_TWEAKS           = Show-MenuChoice -Question "Applicare ottimizzazioni Kernel avanzate (Timer)?" -DefaultChoice $true -Details @"
 PRO:
 - Modifiche di basso livello che possono migliorare la reattivita' generale del sistema.
-- Ottimizza la gestione della memoria (Heap) e la sincronizzazione dei timer della CPU (TSC).
+- Ottimizza la sincronizzazione dei timer della CPU (TSC).
 CONTRO:
 - Essendo modifiche al cuore del sistema, c'e' un rischio (basso) di instabilita' su hardware particolari.
 "@
@@ -285,6 +289,40 @@ CONTRO:
 "@
 }
 
+if ($isWin11) {
+    Write-Host "`n--- Opzioni Specifiche Windows 11 ---" -ForegroundColor Cyan
+    
+    $Tweaks.APPLY_CLASSIC_CONTEXT_MENU    = Show-MenuChoice -Question "Ripristinare il menu contestuale classico di Windows 10?" -DefaultChoice $true -Details @"
+PRO:
+- Mostra immediatamente tutte le opzioni disponibili, senza il passaggio 'Mostra altre opzioni'.
+- Migliora notevolmente la velocita' di lavoro per gli utenti esperti.
+CONTRO:
+- Perdi il nuovo menu contestuale di Windows 11, piu' minimale ma meno funzionale.
+"@
+    
+    $Tweaks.APPLY_CLASSIC_RIBBON          = Show-MenuChoice -Question "Attivare l'interfaccia 'ribbon' classica in Esplora File?" -DefaultChoice $true -Details @"
+PRO:
+- Ripristina la barra multifunzione completa e ricca di funzionalita' di Windows 10.
+- Offre accesso diretto a molti piu' comandi rispetto alla nuova barra semplificata.
+CONTRO:
+- Perdi la nuova barra dei comandi di Windows 11, piu' pulita ma con meno opzioni visibili.
+"@
+    $Tweaks.APPLY_BLOCK_EDGE_CHAT         = Show-MenuChoice -Question "Bloccare la reinstallazione automatica di Edge e Chat?" -DefaultChoice $true -Details @"
+PRO:
+- Impedisce a Windows Update di reinstallare forzatamente Microsoft Edge o l'app Chat.
+- Utile se si preferisce usare browser o app di messaggistica alternativi.
+CONTRO:
+- Nessuno, se non si utilizzano questi specifici programmi Microsoft.
+"@
+    $Tweaks.APPLY_BYPASS_CHECKS           = Show-MenuChoice -Question "Applicare Bypass dei requisiti di sistema (TPM, Secure Boot)?" -DefaultChoice $true -Details @"
+PRO:
+- Permette di installare o aggiornare Windows 11 su hardware non ufficialmente supportato.
+CONTRO:
+- Microsoft potrebbe in futuro negare aggiornamenti a sistemi non conformi.
+- Si disattivano controlli pensati per migliorare la sicurezza del sistema.
+"@
+}
+
 Clear-Host
 
 # ===================================================================
@@ -310,7 +348,12 @@ function Set-RegValue {
     )
     try {
         New-RegistryKey -Path $Path
-        Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force -ErrorAction Stop
+        # Se il nome è vuoto o (Default), imposta il valore predefinito della chiave
+        if ([string]::IsNullOrEmpty($Name) -or $Name -eq "(Default)") {
+            Set-Item -Path $Path -Value $Value -Force -ErrorAction Stop
+        } else {
+            Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force -ErrorAction Stop
+        }
     }
     catch {
         Write-Warning "Impossibile impostare il valore di registro: $Path -> $Name"
@@ -375,11 +418,10 @@ Write-Host "`n[*] Inizio applicazione delle ottimizzazioni selezionate..." -Fore
 
 # --- Privacy e Telemetria ---
 if ($Tweaks.APPLY_WINUPDATE_TWEAK) {
-    Write-Host "  -> Configurazione di Windows Update su 'Notifica per download e installazione'..."
-    Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" "NoAutoUpdate" 0
-    Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" "AUOptions" 2
-    Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" "NoAutoRebootWithLoggedOnUsers" 1
-    Set-ServiceState "wuauserv" "demand" $false
+    Write-Host "  -> Configurazione Windows Update: SOLO Sicurezza e Defender (Niente Driver)..."
+    Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate" "ExcludeWUDriversInQualityUpdate" 1
+	Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "NoAutoUpdate" -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsUpdate\AU" -Name "AUOptions" -ErrorAction SilentlyContinue
     Write-ProgressMessage "Configurazione Windows Update."
 }
 
@@ -429,12 +471,27 @@ if ($Tweaks.APPLY_SUGGESTED_APPS_TWEAK) {
     Set-RegValue "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-338393Enabled" 0 # Aggiunto da Reg.bat
     Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" "DisableWindowsConsumerFeatures" 1
     Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\CloudContent" "DisableThirdPartySuggestions" 1
-    Set-RegValue "HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "RotatingLockScreenOverlayEnabled" 0
-    Set-RegValue "HKCU\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SoftLandingEnabled" 0
-    Set-RegValue "HKCU\Software\Policies\Microsoft\Windows\CloudContent" "DisableThirdPartySuggestions" 1
-    Set-RegValue "HKCU\Software\Policies\Microsoft\Windows\CloudContent" "DisableTailoredExperiencesWithDiagnosticData" 1
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "RotatingLockScreenOverlayEnabled" 0
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SoftLandingEnabled" 0
+    Set-RegValue "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" "DisableThirdPartySuggestions" 1
+    Set-RegValue "HKCU:\Software\Policies\Microsoft\Windows\CloudContent" "DisableTailoredExperiencesWithDiagnosticData" 1
     Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "ShowSyncProviderNotifications" 0
     Write-ProgressMessage "Disattivazione app suggerite e annunci."
+	# Disabilita ID Pubblicità
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\AdvertisingInfo" "Enabled" 0
+    # Impedisce ai siti di vedere la lista lingue
+    Set-RegValue "HKCU:\Control Panel\International\User Profile" "HttpAcceptLanguageOptOut" 1
+    # Disabilita tracking avvio app (migliora Start)
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "Start_TrackProgs" 0
+    # Disabilita suggerimenti Impostazioni extra
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353694Enabled" 0
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\ContentDeliveryManager" "SubscribedContent-353696Enabled" 0
+    
+    # Disabilita Geolocalizzazione (Opzionale ma richiesto dal file reg)
+    Set-RegValue "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" "Value" "Deny" "String"
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\location" "Value" "Deny" "String"
+    
+    Write-ProgressMessage "Privacy e No-Ads applicati."
     # Aggiunte altre chiavi per una pulizia più approfondita, equivalenti a quelle nel file .bat
 }
 
@@ -513,6 +570,7 @@ Set-RegValue "HKCU:\Control Panel\Desktop" "DragFullWindows" "1" "String"
 
 Write-ProgressMessage "Ottimizzazioni Interfaccia e Usabilità."
 # --- Ottimizzazioni Gaming e Prestazioni ---
+if ($Tweaks.APPLY_DISABLE_GAMEBAR) {
 Write-Host "  -> Disattivazione di Game Bar, Game DVR e Ottimizzazioni Schermo Intero..."
 Set-RegValue "HKCU:\Software\Microsoft\GameBar" "AllowAutoGameMode" 0
 Set-RegValue "HKCU:\Software\Microsoft\GameBar" "AutoGameModeEnabled" 0
@@ -523,6 +581,10 @@ Set-RegValue "HKCU:\System\GameConfigStore" "GameDVR_FSEBehaviorMode" 2
 Set-RegValue "HKCU:\System\GameConfigStore" "GameDVR_DXGIHonorFSEWindowsCompatible" 1
 Set-RegValue "HKCU:\System\GameConfigStore" "GameDVR_HonorUserFSEBehaviorMode" 1
 Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" "AllowGameDVR" 0
+} 
+else {
+    Write-Host "  -> Game Bar MANTENUTA attiva (come richiesto)." -ForegroundColor Cyan
+}
 
 if ($Tweaks.APPLY_DISABLE_STICKYKEYS) {
     Write-Host "  -> Disattivazione scorciatoia Tasti Permanenti (No more 5x Shift)..."
@@ -546,12 +608,17 @@ Write-Host "  -> Disattivazione del Power Throttling..."
 Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" "PowerThrottlingOff" 1
 
 Write-Host "  -> Ottimizzazione dei timeout per migliorare la reattivita' e la velocita' di spegnimento..."
-Set-RegValue "HKCU:\Control Panel\Desktop" "AutoEndTasks" 1
-Set-RegValue "HKCU:\Control Panel\Desktop" "HungAppTimeout" 1000
+Set-RegValue "HKCU:\Control Panel\Desktop" "AutoEndTasks" 0
+#Set-RegValue "HKCU:\Control Panel\Desktop" "HungAppTimeout" 2000
 Set-RegValue "HKCU:\Control Panel\Desktop" "MenuShowDelay" 120
-Set-RegValue "HKCU:\Control Panel\Desktop" "WaitToKillAppTimeout" 2000
-Set-RegValue "HKCU:\Control Panel\Desktop" "LowLevelHooksTimeout" 1000
-Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control" "WaitToKillServiceTimeout" 2000
+Set-RegValue "HKCU:\Control Panel\Desktop" "WaitToKillAppTimeout" 10000
+#Set-RegValue "HKCU:\Control Panel\Desktop" "LowLevelHooksTimeout" 2000
+Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control" "WaitToKillServiceTimeout" 10000
+
+Write-Host "  -> Disattivazione notifiche fantasma..."
+Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarBadges" 0
+Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "EnableBalloonTips" 0
+Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\PushNotifications" "ToastEnabled" 0
 
 Write-Host "  -> Disattivazione del servizio NDU (potenziale memory leak)..."
 Set-RegValue "HKLM:\SYSTEM\ControlSet001\Services\Ndu" "Start" 4
@@ -560,8 +627,8 @@ Write-Host "  -> Disattivazione della 'Large System Cache'..."
 Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "LargeSystemCache" 0
 
 Write-Host "  -> Aggiunta opzioni 'Copia in...' e 'Sposta in...' al menu contestuale..."
-Set-RegValue "HKCR:\AllFilesystemObjects\shellex\ContextMenuHandlers\Copy To" "(Default)" "{C2FBB630-2971-11D1-A18C-00C04FD75D13}" "String"
-Set-RegValue "HKCR:\AllFilesystemObjects\shellex\ContextMenuHandlers\Move To" "(Default)" "{C2FBB631-2971-11D1-A18C-00C04FD75D13}" "String"
+Set-RegValue "HKLM:\SOFTWARE\Classes\AllFilesystemObjects\shellex\ContextMenuHandlers\Copy To" "" "{C2FBB630-2971-11D1-A18C-00C04FD75D13}" "String"
+Set-RegValue "HKLM:\SOFTWARE\Classes\AllFilesystemObjects\shellex\ContextMenuHandlers\Move To" "" "{C2FBB631-2971-11D1-A18C-00C04FD75D13}" "String"
 Write-ProgressMessage "Ottimizzazioni Gaming e Prestazioni."
 
 # --- Ottimizzazioni Varie ---
@@ -619,6 +686,76 @@ if ($totalRamGB -gt 4) {
     Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control" "SvcHostSplitThresholdInKB" $svcHostValue "QWord"
 }
 
+if ($Tweaks.APPLY_RAM_SCHEDULER) {
+# 1. Preparazione della directory sicura e copia del file
+$safePath = "$env:ProgramData\WindowsOptimizer"
+if (-not (Test-Path $safePath)) { 
+    New-Item -Path $safePath -ItemType Directory -Force | Out-Null 
+}
+
+# Assumiamo che "free_ram.ps1" si trovi nella stessa cartella di questo script
+$sourceScript = "$PSScriptRoot\src\free_ram.ps1"
+$ramScriptPath = "$safePath\free_ram.ps1"
+
+if (Test-Path $sourceScript) {
+    Write-Host "Copia di free_ram.ps1 nella directory sicura di sistema..." -ForegroundColor Cyan
+    Copy-Item -Path $sourceScript -Destination $ramScriptPath -Force
+} else {
+    Write-Warning "File free_ram.ps1 non trovato in $PSScriptRoot. Assicurati che sia nella stessa cartella di questo script!"
+    exit
+}
+
+# 2. Creazione Task Pianificato (Esattamente come i tuoi screenshot)
+$taskName = "free_ram"
+    
+# Azione: ORA PUNTA ALLA CARTELLA SICURA IN PROGRAMDATA
+$action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-WindowStyle Hidden -ExecutionPolicy Bypass -File `"$ramScriptPath`""
+    
+# Attivazione: ALL'AVVIO
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+    
+# IL TRUCCO: Inseriamo la ripetizione di 10 min direttamente durante la creazione dell'oggetto!
+$repetition = New-CimInstance -ClassName MSFT_TaskRepetitionPattern -Namespace "Root\Microsoft\Windows\TaskScheduler" -Property @{ Interval = "PT10M" } -ClientOnly
+$trigger.Repetition = $repetition
+    
+# Condizioni e Impostazioni (Batteria, Durata 3 giorni, Ferma istanze, ecc.)
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Days 3)
+$settings.Hidden = $true
+$settings.AllowDemandStart = $true
+$settings.AllowHardTerminate = $true
+    
+$settings.Compatibility = "Win8" # Va bene anche per win 10 e 11
+
+# Generale (Utente SYSTEM, Privilegi massimi)
+$principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
+
+# Registrazione
+Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Settings $settings -Principal $principal | Out-Null
+
+Write-Host "Task '$taskName' creato con successo e reso persistente!" -ForegroundColor Green
+    Write-ProgressMessage "Installazione RAM Cleaner completata."
+}
+
+if ($Tweaks.APPLY_MULTITASKING_TWEAK) {
+    Write-Host "  -> Ottimizzazione Multitasking e Focus..."
+    
+    # Snap Assist e Layout
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "SnapAssist" 0
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "EnableSnapLayouts" 0
+    
+    # Alt+Tab pulito (Solo finestre, niente tab Edge)
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "MultiTaskingAltTabFilter" 3
+    
+    # No Aero Shake (Scuotimento finestra)
+    Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "DisallowShaking" 1
+    
+    # Focus Priority (Impedisce furto focus) - 200000ms = 3m circa
+    Set-RegValue "HKCU:\Control Panel\Desktop" "ForegroundLockTimeout" 200000
+    
+    Write-ProgressMessage "Ottimizzazione Multitasking applicata."
+}
+
 $systemDrive = Get-PhysicalDisk | Where-Object { $_.DeviceID -match (Get-Partition | Where-Object { $_.DriveLetter -eq 'C' }).DiskNumber }
 if ($systemDrive.BusType -eq 'NVMe') {
     Write-Host "  -> Ottimizzazione I/O per disco NVMe..."
@@ -627,10 +764,10 @@ if ($systemDrive.BusType -eq 'NVMe') {
 
 # --- Tweak Aggiuntivi (Rete, Mouse, ecc.) ---
 Write-Host "  -> Disabilitazione accelerazione mouse..."
-Set-RegValue "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
-Set-RegValue "HKCU:\Control Panel\Mouse" "MouseSensitivity" "10" "String" # Aggiunto da Reg.bat
-Set-RegValue "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
-Set-RegValue "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
+Set-RegValue "HKCU:\Control Panel\Mouse" "MouseSpeed" 0
+Set-RegValue "HKCU:\Control Panel\Mouse" "MouseSensitivity" 10
+Set-RegValue "HKCU:\Control Panel\Mouse" "MouseThreshold1" 0
+Set-RegValue "HKCU:\Control Panel\Mouse" "MouseThreshold2" 0
 
 Write-Host "  -> Ottimizzazione parametri TCP/IP..."
 Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TcpWindowSize" 64240 # Aggiunto da Reg.bat
@@ -644,7 +781,7 @@ if ($Tweaks.APPLY_DISABLE_WUDO) {
     Write-Host "  -> Disattivazione WUDO (Condivisione aggiornamenti P2P)..."
     Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" "DODownloadMode" 0
     Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\DeliveryOptimization" "SystemSettingsDownloadMode" 0
-    Get-ScheduledTask -TaskPath "\Microsoft\Windows\DeliveryOptimization\" | Disable-ScheduledTask -ErrorAction SilentlyContinue
+	Get-ScheduledTask -TaskPath "\Microsoft\Windows\DeliveryOptimization\" -ErrorAction SilentlyContinue | Disable-ScheduledTask
 }
 
 # --- Tweak da Menu (AI, Edge, Bypass, ecc.) ---
@@ -654,13 +791,18 @@ if ($Tweaks.APPLY_DISABLE_AI) {
     # Le ottimizzazioni di base del registro sono ora gestite dallo script esterno,
     # che esegue una pulizia più approfondita. Queste righe sono commentate
     # per evitare ridondanza, ma possono essere riattivate se necessario.
-    #Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1
+    Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsCopilot" "TurnOffWindowsCopilot" 1
     #Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Edge" "HubsSidebarEnabled" 0
-    #Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1
-    #Set-RegValue "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" "LetAppsAccessGenerativeAI" 2
+    Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1
+    #Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" "LetAppsAccessGenerativeAI" 2
     Write-Host "  -> Esecuzione script esterno per la rimozione completa dei componenti AI..."
     try {
-        & ([scriptblock]::Create((irm "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"))) -nonInteractive -AllOptions
+        # Scarica lo script, adatta 'takeown /d Y' in 'takeown /d S' per Windows in Italiano ed esegui
+        $aiScriptUrl = "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"
+        $aiScriptContent = Invoke-RestMethod -Uri $aiScriptUrl
+        $aiScriptContent = $aiScriptContent -replace '/d Y', '/d S'
+		# cpm 2>$null spprmo tutti gli errori
+        & ([scriptblock]::Create($aiScriptContent)) -nonInteractive -AllOptions 2>$null
     }
     catch {
         Write-Warning "Impossibile scaricare o eseguire lo script RemoveWindowsAI. Verifica la connessione a internet."
@@ -679,7 +821,8 @@ Write-ProgressMessage "Blocco reinstallazione Edge/Chat."
 
 if ($Tweaks.APPLY_DISABLE_DNSCLIENT) {
     Write-Host "  -> Disabilitazione del servizio 'Client DNS' (Dnscache)..."
-    Set-ServiceState "Dnscache" "Disabled"
+    #Set-ServiceState "Dnscache" "Disabled" non Funziona
+	Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\Dnscache" "Start" 4 "DWord"
 }
 
 Write-ProgressMessage "Disabilitazione Client DNS."
@@ -695,8 +838,8 @@ if ($Tweaks.APPLY_BYPASS_CHECKS) {
 if ($Tweaks.APPLY_KERNEL_TWEAKS) {
     Write-Host "  -> Applicazione ottimizzazioni Kernel avanzate..."
     Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" "GlobalTimerResolutionRequests" 1
-    Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" "HeapSegmentReserve" 1048576
-    Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" "HeapSegmentCommit" 262144
+    # Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" "HeapSegmentReserve" 1048576
+    # Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager" "HeapSegmentCommit" 262144
     Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Services\ACPI\Parameters" "TscSyncPolicy" 1
     Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\kernel" "DpcWatchdogProfileOffset" 10000
     Write-ProgressMessage "Applicazione ottimizzazioni Kernel."
@@ -719,7 +862,14 @@ if ($Tweaks.APPLY_DISABLE_IPV6) {
 if ($Tweaks.APPLY_ULTIMATE_PERF) {
     Write-Host "  -> Sblocco e attivazione del piano energetico 'Prestazioni Eccellenti'..."
     $ultimateGuid = "e9a42b02-d5c9-4a9f-a1a9-346d110f6609"
-    powercfg -duplicatescheme $ultimateGuid | Out-Null
+    $planExists = (powercfg /list) -match $ultimateGuid
+    
+    if (-not $planExists) {
+        Write-Host "     Creazione nuovo piano energetico..." -ForegroundColor Cyan
+        powercfg -duplicatescheme $ultimateGuid | Out-Null
+    } else {
+        Write-Host "     Piano energetico gia' presente. Attivazione..." -ForegroundColor Cyan
+    }
     powercfg -setactive $ultimateGuid
 }
 
@@ -779,17 +929,8 @@ try {
 catch {
     Write-Warning "Impossibile eseguire lo script 'debloat.ps1'. Potrebbe non esistere o contenere errori."
 }
-try { # Aggiunto da Reg.bat
-    PowerShell -Command "Get-AppxPackage -Name Microsoft.YourPhone_8wekyb3d8bbwe -AllUsers | Remove-AppxPackage" | Out-Null
-} catch {}
 
-Write-Host "`n[ATTENZIONE] Lo script sta per eseguire un tool di ottimizzazione esterno (Chris Titus Tech)." -ForegroundColor Yellow
-try {
-    Invoke-RestMethod -Uri 'https://christitus.com/win' | Invoke-Expression
-}
-catch {
-    Write-Warning "Impossibile scaricare o eseguire lo script di Chris Titus Tech. Verifica la connessione a internet."
-}
+
 
 # Write-Host "`n[*] Avvio pulizia file temporanei..." -ForegroundColor Yellow
 # Start-Process -FilePath "$PSScriptRoot\CCleaner.bat"
