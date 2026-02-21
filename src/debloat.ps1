@@ -50,24 +50,26 @@ $bloatwareApps = @(
     "Microsoft.WindowsMaps",
     "Microsoft.ZuneMusic",
     "Microsoft.ZuneVideo",
-    "Microsoft.People"
+    "Microsoft.People",
+	"Microsoft.549981C3F5F10",                # Cortana
+    "Microsoft.BingWeather",  
+	"Microsoft.SkypeApp",                     # Skype
+    "Microsoft.YourPhone",                    # Collegamento al telefono
+    "Microsoft.Todos",                        # Microsoft To Do
+	"MicrosoftCorporationII.MicrosoftFamily" # Microsoft Family Safety
 )
 
 # Lista di app che alcuni utenti potrebbero trovare utili. Verrà chiesta conferma prima della rimozione.
 $potentiallyUsefulApps = @(
-    "Microsoft.549981C3F5F10",                # Cortana
-    "Microsoft.BingWeather",                  # Meteo
+
     "Microsoft.MicrosoftStickyNotes",         # Sticky Notes
-    "Microsoft.SkypeApp",                     # Skype
     "Microsoft.WindowsAlarms",                # Sveglie e Orologio
     "Microsoft.WindowsCamera",                # Fotocamera
     "Microsoft.WindowsSoundRecorder",         # Registratore di suoni
-    "Microsoft.YourPhone",                    # Collegamento al telefono
     "Microsoft.Todos",                        # Microsoft To Do
     "Microsoft.OutlookForWindows",            # Il nuovo Outlook
     "MicrosoftTeams",                         # Microsoft Teams
     "Microsoft.WindowsCommunicationsApps",    # Posta e Calendario
-    "MicrosoftCorporationII.MicrosoftFamily", # Microsoft Family Safety
     "MicrosoftCorporationII.QuickAssist",     # Assistenza rapida
     "Microsoft.Xbox.TCUI",
     "Microsoft.XboxApp",
@@ -80,7 +82,7 @@ $potentiallyUsefulApps = @(
 # Rimuove sempre il bloatware comune
 Write-Host "`n[*] Rimozione delle App bloatware comuni..." -ForegroundColor Yellow
 foreach ($app in $bloatwareApps) {
-    try {
+    
         $packages = Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue
         if ($packages) {
             foreach ($package in $packages) {
@@ -97,13 +99,20 @@ foreach ($app in $bloatwareApps) {
                         }
                     }
                 } catch {} # Ignora errori, il processo potrebbe non essere in esecuzione
-                $package | Remove-AppxPackage -AllUsers -ErrorAction Stop
+				
+                try {
+                # Usiamo -Package e il nome completo per essere più precisi
+                Remove-AppxPackage -Package $package.PackageFullName -AllUsers -ErrorAction Stop
+                Write-Host "  - Pacchetto $($package.Name) rimosso." -ForegroundColor Green
             }
-            Write-Host "  - App '$app' rimossa." -ForegroundColor Green
+            catch {
+                # Se QUESTO pacchetto specifico fallisce, cattura l'errore qui!
+                # Il ciclo non si ferma e passerà al pacchetto successivo.
+                Write-Host "  - Impossibile rimuovere il pacchetto $($package.Name). (Errore: $_)" -ForegroundColor DarkGray
+            }
         }
-    }
-    catch {
-        Write-Host "  - Impossibile rimuovere l'app '$app'. Potrebbe essere gia' stata rimossa. (Errore: $_)" -ForegroundColor DarkGray
+        # Quando ha finito di scorrere tutti i pacchetti dell'app, ce lo comunica
+        Write-Host "  - Operazione conclusa per l'app '$app'." -ForegroundColor Cyan
     }
 }
 
@@ -118,31 +127,32 @@ $choices = [System.Management.Automation.Host.ChoiceDescription[]]@(
 $decision = $Host.UI.PromptForChoice($title, $message, $choices, 1)
 
 if ($decision -eq 0) {
-    Write-Host "`n[*] Rimozione delle App potenzialmente utili..." -ForegroundColor Yellow
+Write-Host "`n[*] Rimozione delle App potenzialmente utili..." -ForegroundColor Yellow
     foreach ($app in $potentiallyUsefulApps) {
-        try {
-            $packages = Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue
-            if ($packages) {
-                foreach ($package in $packages) {
-                    # Tenta di fermare i processi associati al pacchetto prima della rimozione
-                    try {
-                        $manifestPath = Join-Path $package.InstallLocation 'AppxManifest.xml'
-                        if (Test-Path $manifestPath) {
-                            [xml]$manifest = Get-Content -Path $manifestPath
-                            foreach ($application in $manifest.Package.Applications.Application) {
-                                if ($application.Executable) {
-                                    $processName = [System.IO.Path]::GetFileNameWithoutExtension($application.Executable)
-                                    Get-Process -Name $processName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-                                }
+        $packages = Get-AppxPackage -Name "*$app*" -AllUsers -ErrorAction SilentlyContinue
+        if ($packages) {
+            foreach ($package in $packages) {
+                try {
+                    $manifestPath = Join-Path $package.InstallLocation 'AppxManifest.xml'
+                    if (Test-Path $manifestPath) {
+                        [xml]$manifest = Get-Content -Path $manifestPath
+                        foreach ($application in $manifest.Package.Applications.Application) {
+                            if ($application.Executable) {
+                                $processName = [System.IO.Path]::GetFileNameWithoutExtension($application.Executable)
+                                Get-Process -Name $processName -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
                             }
                         }
-                    } catch {} # Ignora errori, il processo potrebbe non essere in esecuzione
-                    $package | Remove-AppxPackage -AllUsers -ErrorAction Stop
+                    }
+                } catch {} 
+                
+                try {
+                    Remove-AppxPackage -Package $package.PackageFullName -AllUsers -ErrorAction Stop
+                    Write-Host "  - Pacchetto $($package.Name) rimosso." -ForegroundColor Green
+                } catch {
+                    Write-Host "  - Impossibile rimuovere il pacchetto $($package.Name). (Errore: $_)" -ForegroundColor DarkGray
                 }
-                Write-Host "  - App '$app' rimossa." -ForegroundColor Green
             }
-        } catch {
-            Write-Host "  - Impossibile rimuovere l'app '$app'. Potrebbe essere gia' stata rimossa. (Errore: $_)" -ForegroundColor DarkGray
+            Write-Host "  - Operazione conclusa per l'app '$app'." -ForegroundColor Cyan
         }
     }
 }
@@ -241,3 +251,12 @@ catch {
 }
 
 Write-Host "`n[OK] Script di debloating completato." -ForegroundColor Cyan
+
+
+Write-Host "  - Riavvio di Esplora File per aggiornare l'interfaccia..."
+Stop-Process -Name "explorer" -Force -ErrorAction SilentlyContinue
+# Pausa di 1 secondo per dare il tempo a Windows di chiudere bene gli handle aperti
+Start-Sleep -Seconds 1 
+
+# Riavvia la shell in modo sicuro
+Start-Process "explorer.exe"
