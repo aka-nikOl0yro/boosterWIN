@@ -10,11 +10,11 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
 
 | File | Descrizione |
 | :--- | :--- |
-| **`PUSHME.bat` o `avviaReg.bat`** | 🟢 **Starter**. Il punto di partenza consigliato per eseguire le ottimizzazioni in sequenza. |
-| **`CCleaner.bat`** | 🧹 **Pulizia Sistema**. Script per la rimozione di file temporanei, log inutili e altra "spazzatura" per liberare spazio su disco. |
-| **`Internet.bat`** | 🌐 **Ottimizzazione Rete**. Script dedicato al miglioramento della connessione internet. |
-| **`reg.ps1`** | ⚙️ **Registry Tweaks**. Script PowerShell che applica modifiche al registro di sistema per migliorare le prestazioni e la reattività di Windows. |
-| **`icon.bat`** |  Script di utilità per creare un collegamento per il ccleaner. |
+| **`PUSHME.bat` o `avviaReg.bat`** | Il punto di partenza consigliato per eseguire le ottimizzazioni piu comodamente. |
+| **`CCleaner.bat`** |  Script per la rimozione di file temporanei, log inutili e altra "spazzatura" per liberare spazio su disco. |
+|**`copiaCCleaner.ps1`**| Script per salvare lo script per il futuro anche dopo l'eliminazione della cartella creando un collegamento al desktop. |
+| **`Internet.bat`** | Script dedicato al miglioramento della stabilità della connessione internet. (non fa miracoli) |
+| **`reg.ps1`** | Script PowerShell che applica modifiche al registro di sistema per migliorare le prestazioni e la reattività di Windows. |
 
 ## 🛠️ Installazione e Utilizzo
 
@@ -25,15 +25,6 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
 
 Esegui come Amministratore: Per funzionare correttamente, la maggior parte di questi script richiede privilegi elevati.
 
-Clicca con il tasto destro sul file che desideri eseguire (es. PUSHME.bat).
-
-Seleziona "Esegui come amministratore".
-
-3. **PowerShell (`reg.ps1`):**
-   Se hai problemi ad eseguire lo script `.ps1`, potresti dover abilitare l'esecuzione degli script su PowerShell.
-   Apri PowerShell come amministratore e digita:
-   ```powershell
-   Set-ExecutionPolicy RemoteSigned
    
 ⚠️ Disclaimer
 Questo software è fornito "così com'è", senza garanzie di alcun tipo. L'autore non è responsabile per eventuali danni, perdita di dati o malfunzionamenti del sistema derivanti dall'uso di questi script.
