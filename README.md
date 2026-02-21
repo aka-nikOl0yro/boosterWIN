@@ -2,7 +2,7 @@
 
 **boosterWIN** è una raccolta di script batch e PowerShell progettati per ottimizzare, pulire e velocizzare i sistemi operativi Windows.
 
-> ⚠️ **Attenzione:** Questi script modificano file di sistema e chiavi di registro. Si consiglia di creare un punto di ripristino del sistema prima di utilizzarli. Utilizza questo software a tuo rischio e pericolo.
+> ⚠️ **Attenzione:** Questi script modificano file di sistema e chiavi di registro. Utilizza questo software a tuo rischio e pericolo.
 
 ## 📂 Contenuto del Repository
 
@@ -37,5 +37,7 @@ Seleziona "Esegui come amministratore".
    
 ⚠️ Disclaimer
 Questo software è fornito "così com'è", senza garanzie di alcun tipo. L'autore non è responsabile per eventuali danni, perdita di dati o malfunzionamenti del sistema derivanti dall'uso di questi script.
+
+# Se noti un problema segnalalo cosi io possa provare a sistemarlo
 
 Progetto creato da aka-nikOl0yro
