@@ -60,7 +60,7 @@ pause
 color 07
 echo gpedit configurato
 timeout 2 > nul
-choice /c yn /cs /t 30 /d n /m "aprire l'optimizer (non consigliato)"
+choice /c yn /cs /t 30 /d y /m "aprire l'optimizer "
 if errorlevel 2 goto SKIP1
 if errorlevel 1 goto RUN
 :RUN
@@ -86,4 +86,5 @@ if errorlevel 2 (
 timeout 40 > nul
 exit)
 if errorlevel 1 shutdown /r -t 40
+
 pause
