@@ -92,7 +92,7 @@ function Refresh-Drive-List {
 
 # --- GUI ---
 $Form = New-Object System.Windows.Forms.Form
-$Form.Text = "Ultimate Cleaner v7 (Safety & Drive Control)"
+$Form.Text = "CCleaner v8"
 $Form.Size = New-Object System.Drawing.Size(700, 750) # Leggermente più alto
 $Form.StartPosition = "CenterScreen"
 $Form.FormBorderStyle = "FixedDialog"
