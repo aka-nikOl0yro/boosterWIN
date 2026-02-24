@@ -614,6 +614,11 @@ Set-RegValue "HKCU:\Control Panel\Desktop" "MenuShowDelay" 120
 Set-RegValue "HKCU:\Control Panel\Desktop" "WaitToKillAppTimeout" 10000
 #Set-RegValue "HKCU:\Control Panel\Desktop" "LowLevelHooksTimeout" 2000
 Set-RegValue "HKLM:\SYSTEM\CurrentControlSet\Control" "WaitToKillServiceTimeout" 10000
+# Write-Host "  -> Ripristino dei timeout predefiniti di Windows (Rimozione ottimizzazioni)..."
+# Rimuove il valore LowLevelHooksTimeout se esiste
+Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "LowLevelHooksTimeout" -ErrorAction SilentlyContinue
+# Rimuove il valore HungAppTimeout se esiste
+Remove-ItemProperty -Path "HKCU:\Control Panel\Desktop" -Name "HungAppTimeout" -ErrorAction SilentlyContinue
 
 Write-Host "  -> Disattivazione notifiche fantasma..."
 Set-RegValue "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced" "TaskbarBadges" 0
