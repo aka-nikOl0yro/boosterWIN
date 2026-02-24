@@ -800,14 +800,30 @@ if ($Tweaks.APPLY_DISABLE_AI) {
     #Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Edge" "HubsSidebarEnabled" 0
     Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\WindowsAI" "DisableAIDataAnalysis" 1
     #Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\AppPrivacy" "LetAppsAccessGenerativeAI" 2
-    Write-Host "  -> Esecuzione script esterno per la rimozione completa dei componenti AI..."
+	
+Write-Host "  -> Esecuzione script esterno per la rimozione completa dei componenti AI..."
     try {
-        # Scarica lo script, adatta 'takeown /d Y' in 'takeown /d S' per Windows in Italiano ed esegui
+        # Scarica lo script e adatta 'takeown /d Y' in 'takeown /d S' per Windows in Italiano
         $aiScriptUrl = "https://raw.githubusercontent.com/zoicware/RemoveWindowsAI/main/RemoveWindowsAi.ps1"
         $aiScriptContent = Invoke-RestMethod -Uri $aiScriptUrl
         $aiScriptContent = $aiScriptContent -replace '/d Y', '/d S'
-		# cpm 2>$null spprmo tutti gli errori
-        & ([scriptblock]::Create($aiScriptContent)) -nonInteractive -AllOptions 2>$null
+        
+        # 1. Crea un percorso per un file temporaneo
+        $tempScriptPath = Join-Path $env:TEMP "RemoveWindowsAi_Temp.ps1"
+        
+        # 2. Salva il contenuto modificato nel file temporaneo
+        Set-Content -Path $tempScriptPath -Value $aiScriptContent -Force
+        
+        Write-Host "     (Avvio della rimozione AI in background, l'operazione richiede tempo...)" -ForegroundColor Cyan
+        
+        # 3. Avvia il file in una nuova shell passando i parametri per nascondere la SUA interfaccia grafica!
+        $psArgs = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$tempScriptPath`" -nonInteractive -AllOptions"
+        Start-Process -FilePath "powershell.exe" -ArgumentList $psArgs -Wait
+        
+        # 4. Pulizia: elimina il file temporaneo
+        Remove-Item -Path $tempScriptPath -Force -ErrorAction SilentlyContinue
+        
+        Write-Host "  -> Rimozione AI completata con successo." -ForegroundColor Green
     }
     catch {
         Write-Warning "Impossibile scaricare o eseguire lo script RemoveWindowsAI. Verifica la connessione a internet."
