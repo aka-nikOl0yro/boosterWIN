@@ -36,5 +36,6 @@ Esegui come Amministratore: Per funzionare correttamente, la maggior parte di qu
 Questo software è fornito "così com'è", senza garanzie di alcun tipo. L'autore non è responsabile per eventuali danni, perdita di dati o malfunzionamenti del sistema derivanti dall'uso di questi script.
 
 # Se noti un problema segnalalo cosi io possa provare a sistemarlo
+Entra nel nostro [canale Discord](https://discord.gg/sStBFCepAm) per aggiornamenti e supporto
 
 Progetto creato da aka-nikOl0yro
