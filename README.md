@@ -15,6 +15,7 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
 |**`copiaCCleaner.ps1`**| Script per salvare lo script per il futuro anche dopo l'eliminazione della cartella creando un collegamento al desktop. |
 | **`Internet.bat`** | Script dedicato al miglioramento della stabilità della connessione internet. (non fa miracoli) |
 | **`reg.ps1`** | Script PowerShell che applica modifiche al registro di sistema per migliorare le prestazioni e la reattività di Windows. |
+| **`FIX folder`** | raccolta dei fix per eventuali problemi comuni causati dallo script. |
 
 ## 🛠️ Installazione e Utilizzo
 
@@ -25,6 +26,11 @@ Il progetto è suddiviso in diversi moduli per targettizzare aree specifiche del
 
 Esegui come Amministratore: Per funzionare correttamente, la maggior parte di questi script richiede privilegi elevati.
 
+## 📂 FIX
+
+| File | Stato | Descrizione |
+| :--- | :--- | :--- |
+| **`fix1.reg`** | implementato in reg.ps1 dalla V4.1.5 | sistema il problema di flickering delle finestre prodotto dalla versione 4 |
    
 ⚠️ Disclaimer
 Questo software è fornito "così com'è", senza garanzie di alcun tipo. L'autore non è responsabile per eventuali danni, perdita di dati o malfunzionamenti del sistema derivanti dall'uso di questi script.
