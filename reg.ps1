@@ -974,4 +974,3 @@ Write-Host "E' necessario riavviare il sistema per applicare tutte le modifiche.
 Restart-Computer -Force -Delay 60 -Message "Riavvio programmato in 60 secondi per completare l'ottimizzazione."
 
 Pop-Location
-

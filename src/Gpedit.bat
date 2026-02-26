@@ -1,23 +1,17 @@
 @echo off
 
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
+:: 1. Controllo dei privilegi di amministratore
+net session >nul 2>&1
+if %errorLevel% == 0 (
+    echo [OK] Permessi di amministratore confermati.
+) else (
+    echo [*] Richiesta permessi di amministratore in corso...
+    powershell -Command "Start-Process '%~dpnx0' -Verb RunAs"
+    exit /b
+)
 
-REM --> If error flag set, we do not have admin.
-if '%errorlevel%' NEQ '0' (
-echo Requesting administrative privileges...
-goto UACPrompt
-) else ( goto gotAdmin )
-:UACPrompt
-echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
-"%temp%\getadmin.vbs"
-exit /B
-:gotAdmin
-if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
-pushd "%CD%"
-CD /D "%~dp0"
-
-pushd "%~dp0"
+:: 2. Imposta la cartella di lavoro corrente su quella dello script
+cd /d "%~dp0"
 
 dir /b %SystemRoot%\servicing\Packages\Microsoft-Windows-GroupPolicy-ClientExtensions-Package~3*.mum >List.txt
 dir /b %SystemRoot%\servicing\Packages\Microsoft-Windows-GroupPolicy-ClientTools-Package~3*.mum >>List.txt

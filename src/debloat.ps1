@@ -19,7 +19,7 @@ $tasks = @(
     "Application Crash Telemetry",
     "Autotune",
     "AitAgent",
-    "XblGameSaveTask",
+    #"XblGameSaveTask",
     "StartupAppTask",
     "WDI Run Downloader Task",
     "WinSAT"
@@ -56,17 +56,17 @@ $bloatwareApps = @(
 	"Microsoft.SkypeApp",                     # Skype
     "Microsoft.YourPhone",                    # Collegamento al telefono
     "Microsoft.Todos",                        # Microsoft To Do
+	"Microsoft.MicrosoftStickyNotes",         # Sticky Notes
 	"MicrosoftCorporationII.MicrosoftFamily" # Microsoft Family Safety
 )
 
 # Lista di app che alcuni utenti potrebbero trovare utili. Verrà chiesta conferma prima della rimozione.
 $potentiallyUsefulApps = @(
 
-    "Microsoft.MicrosoftStickyNotes",         # Sticky Notes
+    
     "Microsoft.WindowsAlarms",                # Sveglie e Orologio
     "Microsoft.WindowsCamera",                # Fotocamera
     "Microsoft.WindowsSoundRecorder",         # Registratore di suoni
-    "Microsoft.Todos",                        # Microsoft To Do
     "Microsoft.OutlookForWindows",            # Il nuovo Outlook
     "MicrosoftTeams",                         # Microsoft Teams
     "Microsoft.WindowsCommunicationsApps",    # Posta e Calendario
@@ -119,7 +119,7 @@ foreach ($app in $bloatwareApps) {
 # Chiede all'utente se vuole rimuovere le app potenzialmente utili
 Write-Host ""
 $title = "Rimozione App Potenzialmente Utili"
-$message = "Vuoi rimuovere anche le app potenzialmente utili (es. Fotocamera, Sticky Notes, Xbox, Posta, Collegamento al Telefono)?"
+$message = "Vuoi rimuovere anche le app potenzialmente utili (es. Fotocamera, Xbox, Posta, Teams)?"
 $choices = [System.Management.Automation.Host.ChoiceDescription[]]@(
     New-Object System.Management.Automation.Host.ChoiceDescription("&Si", "Rimuove le app aggiuntive.")
     New-Object System.Management.Automation.Host.ChoiceDescription("&No", "Mantiene queste app installate.")

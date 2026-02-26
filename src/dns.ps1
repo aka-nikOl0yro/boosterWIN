@@ -1,10 +1,13 @@
 <#
 .SYNOPSIS
-    Script DNS Benchmark V10 - Tabella Dettagliata
-    Mostra i ping ai singoli servizi separatamente.
+    Script DNS Benchmark V2.0
+    Testa piu' DNS con ping multipli (mediana), parallelizzati per velocita'.
+    Ripristina IPv6 se lo ha disabilitato. Mostra il migliore e lo applica.
 #>
 
-# --- CONTROLLO AMMINISTRATORE ---
+# ===================================================================
+# === CONTROLLO AMMINISTRATORE ===
+# ===================================================================
 if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
     Write-Warning "ERRORE: Esegui come Amministratore!"
     Start-Sleep -Seconds 3
@@ -13,14 +16,16 @@ if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]:
 
 Clear-Host
 Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host "    BENCHMARK DNS V1.10 " -ForegroundColor Cyan
+Write-Host "       BENCHMARK DNS V2.0                   " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 
-# --- 1. SELEZIONE SCHEDA ---
+# ===================================================================
+# === 1. SELEZIONE SCHEDA DI RETE ===
+# ===================================================================
 $AllAdapters = Get-NetAdapter | Where-Object { $_.Status -eq "Up" }
-if (!$AllAdapters) { Write-Error "Nessuna rete."; Exit }
+if (!$AllAdapters) { Write-Error "Nessuna scheda di rete attiva trovata."; Exit }
 
-Write-Host "Schede trovate:" -ForegroundColor Yellow
+Write-Host "`nSchede di rete trovate:" -ForegroundColor Yellow
 $i = 1
 foreach ($adapter in $AllAdapters) {
     Write-Host " [$i] $($adapter.Name)"
@@ -29,145 +34,215 @@ foreach ($adapter in $AllAdapters) {
 
 $selectedId = 0
 do {
-    $inputVal = Read-Host "`nScegli numero scheda (es. 2)"
+    $inputVal = Read-Host "`nScegli il numero della scheda da testare"
     if ($inputVal -match "^\d+$" -and [int]$inputVal -ge 1 -and [int]$inputVal -le $AllAdapters.Count) {
         $selectedId = [int]$inputVal
+    } else {
+        Write-Host " Scelta non valida, riprova." -ForegroundColor Red
     }
 } until ($selectedId -gt 0)
 
 $Interface = $AllAdapters[$selectedId - 1]
-Write-Host "Uso: $($Interface.Name)" -ForegroundColor Green
+Write-Host "`n[OK] Scheda selezionata: $($Interface.Name)" -ForegroundColor Green
 
-# --- 2. DISABILITA IPv6 (TENTATIVO FIX 12s) ---
+# ===================================================================
+# === 2. DISABILITA IPv6 TEMPORANEAMENTE (evita delay da 12s) ===
+# ===================================================================
+$ipv6WasEnabled = $false
 try {
-    if ((Get-NetAdapterBinding -Name $Interface.Name -ComponentID ms_tcpip6).Enabled) {
+    $ipv6Binding = Get-NetAdapterBinding -Name $Interface.Name -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue
+    if ($ipv6Binding -and $ipv6Binding.Enabled) {
         Disable-NetAdapterBinding -Name $Interface.Name -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue
-        Write-Host "IPv6 disabilitato." -ForegroundColor DarkGray
+        $ipv6WasEnabled = $true
+        Write-Host "[*] IPv6 disabilitato temporaneamente per il benchmark." -ForegroundColor DarkGray
         Start-Sleep -Seconds 2
     }
 } catch {}
 
-# --- 3. LISTA SERVIZI COMPLETA ---
+# ===================================================================
+# === 3. LISTA SERVER DA TESTARE ===
+# ===================================================================
 $Services = @(
-    "google.com", 
-	"1.1.1.1",
-    "steampowered.com", 
-    "riotgames.com", 
-    "ubisoft.com", 
-    "ea.com", 
-    "blizzard.com", 
-    "twitch.tv", 
+    "google.com",
+    "1.1.1.1",
+    "steampowered.com",
+    "riotgames.com",
+    "ubisoft.com",
+    "ea.com",
+    "blizzard.com",
+    "twitch.tv",
     "discord.com",
-	"ec2.eu-south-1.amazonaws.com",   # AWS MILANO (Server ITA Fortnite)
-    "ec2.eu-central-1.amazonaws.com", # AWS FRANCOFORTE (Server EU Main)
-    "ec2.eu-west-2.amazonaws.com"    # AWS LONDRA (Server EU West)
+    "ec2.eu-south-1.amazonaws.com",   # AWS MILANO   (Fortnite ITA)
+    "ec2.eu-central-1.amazonaws.com", # AWS FRANCOFORTE (EU Main)
+    "ec2.eu-west-2.amazonaws.com"     # AWS LONDRA   (EU West)
 )
 
-# --- 4. LISTA DNS ---
+# ===================================================================
+# === 4. LISTA DNS DA TESTARE ===
+# ===================================================================
 $DnsList = @(
-    @{ Id=0; Name="Default";    Primary="Auto";       Secondary="Auto" },
-    @{ Id=1; Name="Google";     Primary="8.8.8.8";    Secondary="8.8.4.4" },
-    @{ Id=2; Name="Cloudflare"; Primary="1.1.1.1";    Secondary="1.0.0.1" },
-    @{ Id=3; Name="OpenDNS";    Primary="208.67.222.222"; Secondary="208.67.220.220" },
-    @{ Id=4; Name="Quad9";      Primary="9.9.9.9";    Secondary="149.112.112.112" }
+    @{ Id=0; Name="Default/ISP"; Primary="Auto";            Secondary="Auto" },
+    @{ Id=1; Name="Google";      Primary="8.8.8.8";         Secondary="8.8.4.4" },
+    @{ Id=2; Name="Cloudflare";  Primary="1.1.1.1";         Secondary="1.0.0.1" },
+    @{ Id=3; Name="OpenDNS";     Primary="208.67.222.222";  Secondary="208.67.220.220" },
+    @{ Id=4; Name="Quad9";       Primary="9.9.9.9";         Secondary="149.112.112.112" }
 )
 
-$Results = @()
-
-function Get-PingLatency ($target) {
-    $rawOutput = ping.exe -n 1 -w 1000 $target | Out-String
-    if ($rawOutput -match "(?i)(durata|time)\s*[=<]\s*(?<ms>\d+)ms") { return [int]$Matches['ms'] }
-    return 9999
+# ===================================================================
+# === 5. FUNZIONE PING CON MEDIANA (4 ping, prende il valore centrale) ===
+# ===================================================================
+function Get-PingMedian ($target) {
+    $rawOutput = ping.exe -n 4 -w 1000 $target | Out-String
+    $matches_all = [regex]::Matches($rawOutput, "(?i)(durata|time)\s*[=<]\s*(?<ms>\d+)ms")
+    $latencies = @()
+    foreach ($m in $matches_all) { $latencies += [int]$m.Groups['ms'].Value }
+    if ($latencies.Count -eq 0) { return 9999 }
+    $sorted = $latencies | Sort-Object
+    return $sorted[[math]::Floor($sorted.Count / 2)]
 }
 
-# --- 5. LOOP DI TEST ---
+# ===================================================================
+# === 6. LOOP DI TEST ===
+# ===================================================================
+$Results = @()
+
 foreach ($dns in $DnsList) {
     Write-Host "`n------------------------------------------------"
     Write-Host " TEST: $($dns.Name)" -ForegroundColor Yellow
 
-    # Cambio DNS
+    # Imposta il DNS
     try {
         if ($dns.Id -eq 0) {
             Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ResetServerAddresses -ErrorAction Stop
         } else {
             Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ServerAddresses ($dns.Primary, $dns.Secondary) -ErrorAction Stop
         }
-    } catch { continue }
+    } catch {
+        Write-Host " [!] Impossibile impostare il DNS $($dns.Name), salto." -ForegroundColor Red
+        continue
+    }
 
-    # Attesa
+    # Svuota cache DNS e attendi propagazione
     Clear-DnsClientCache
-    Write-Host " -> Applico DNSs... " -NoNewline
+    Write-Host " -> DNS applicato, attendo propagazione..." -NoNewline
     Start-Sleep -Seconds 2
-    Write-Host "OK."
+    Write-Host " OK."
 
-    # Inizializza l'oggetto per i risultati di questo DNS (Uso Ordered per mantenere l'ordine delle colonne)
+    # --- Ping paralleli tramite Start-Job ---
+    Write-Host " -> Avvio ping paralleli su $($Services.Count) server..." -ForegroundColor DarkGray
+
+    $jobs = foreach ($srv in $Services) {
+        $colName = $srv -replace "\..*", ""
+        Start-Job -ScriptBlock {
+            param($target, $col)
+            $raw = ping.exe -n 4 -w 1000 $target | Out-String
+            $ms_matches = [regex]::Matches($raw, "(?i)(durata|time)\s*[=<]\s*(?<ms>\d+)ms")
+            $latencies = @()
+            foreach ($m in $ms_matches) { $latencies += [int]$m.Groups['ms'].Value }
+            if ($latencies.Count -eq 0) { return @{ Col=$col; Ms=9999 } }
+            $sorted = $latencies | Sort-Object
+            $median = $sorted[[math]::Floor($sorted.Count / 2)]
+            return @{ Col=$col; Ms=$median }
+        } -ArgumentList $srv, $colName
+    }
+
+    # Attendi tutti i job e raccogli risultati
+    $jobResults = $jobs | Wait-Job | Receive-Job
+    $jobs | Remove-Job -Force
+
+    # Costruisci oggetto risultato ordinato
     $dnsResult = [ordered]@{}
-    $dnsResult["Id"] = $dns.Id
+    $dnsResult["Id"]   = $dns.Id
     $dnsResult["Name"] = $dns.Name
 
     $totalPing = 0
     $count = 0
 
-    foreach ($srv in $Services) {
-        # Nome colonna breve (rimuove .com, .tv ecc per spazio)
-        $colName = $srv -replace "\..*",""
-        
-        Write-Host " -> Ping $colName... " -NoNewline
-        $ms = Get-PingLatency $srv
-        
+    foreach ($jr in $jobResults) {
+        $col = $jr.Col
+        $ms  = $jr.Ms
         if ($ms -lt 9999) {
-            Write-Host "${ms}ms" -ForegroundColor White
-            $dnsResult[$colName] = $ms
+            Write-Host "    $col : ${ms}ms" -ForegroundColor White
+            $dnsResult[$col] = $ms
             $totalPing += $ms
             $count++
         } else {
-            Write-Host "X" -ForegroundColor Red
-            $dnsResult[$colName] = "X"
+            Write-Host "    $col : X" -ForegroundColor Red
+            $dnsResult[$col] = "X"
         }
     }
 
-    if ($count -gt 0) { 
-        $dnsResult["MEDIA"] = [math]::Round($totalPing / $count, 1)
-    } else { 
-        $dnsResult["MEDIA"] = 9999 
-    }
+    $dnsResult["MEDIA"] = if ($count -gt 0) { [math]::Round($totalPing / $count, 1) } else { 9999 }
 
-    # Aggiungi all'array dei risultati convertendo l'hash table in oggetto
     $Results += [PSCustomObject]$dnsResult
 }
 
-# --- 6. TABELLA FINALE ---
-# Ordina per MEDIA
+# ===================================================================
+# === 7. RIPRISTINO IPv6 (se era abilitato prima) ===
+# ===================================================================
+if ($ipv6WasEnabled) {
+    try {
+        Enable-NetAdapterBinding -Name $Interface.Name -ComponentID ms_tcpip6 -ErrorAction SilentlyContinue
+        Write-Host "`n[*] IPv6 riabilitato." -ForegroundColor DarkGray
+    } catch {}
+}
+
+# ===================================================================
+# === 8. TABELLA FINALE ===
+# ===================================================================
 $ResultsSorted = $Results | Sort-Object "MEDIA"
+$Best = $ResultsSorted[0]
 
 Clear-Host
-Write-Host "=== RISULTATI (ms) ===" -ForegroundColor Cyan
-# Format-Table automatico mostrerà tutte le colonne create dinamicamente
+Write-Host "=============================================" -ForegroundColor Cyan
+Write-Host "         RISULTATI BENCHMARK DNS (ms)        " -ForegroundColor Cyan
+Write-Host "=============================================" -ForegroundColor Cyan
 $ResultsSorted | Format-Table -AutoSize
 
-if ($ResultsSorted.Count -gt 0) { $Best = $ResultsSorted[0] }
-
-# --- 7. SCELTA ---
 Write-Host "---------------------------------------------"
-Write-Host " [0] Default/ISP"
-Write-Host " [1-4] Scegli ID"
-Write-Host " [A] Migliore ($($Best.Name))"
-Write-Host " [X] Esci"
+Write-Host " DNS piu' veloce per te: $($Best.Name) - media $($Best.MEDIA) ms" -ForegroundColor Green
+Write-Host "---------------------------------------------"
 
-$choice = Read-Host "`nScelta"
-switch -Regex ($choice) {
-    "^[0]$" { Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ResetServerAddresses; Write-Host "Reset OK." }
-    "^[1-4]$" { 
-        $p = $DnsList | Where-Object {$_.Id -eq $choice}
-        if($p){ Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ServerAddresses ($p.Primary, $p.Secondary); Write-Host "Impostato $($p.Name)." }
+# ===================================================================
+# === 9. SCELTA FINALE ===
+# ===================================================================
+Write-Host ""
+Write-Host " [0]   Default/ISP (reset)"
+Write-Host " [1-4] Scegli per ID"
+Write-Host " [A]   Applica il migliore ($($Best.Name))"
+Write-Host " [X]   Esci senza modifiche"
+Write-Host ""
+
+$choice = Read-Host "Scelta"
+
+switch -Regex ($choice.Trim()) {
+    "^[0]$" {
+        Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ResetServerAddresses
+        Write-Host "[OK] DNS ripristinato al Default/ISP." -ForegroundColor Green
+    }
+    "^[1-4]$" {
+        $picked = $DnsList | Where-Object { $_.Id -eq [int]$choice }
+        if ($picked) {
+            Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ServerAddresses ($picked.Primary, $picked.Secondary)
+            Write-Host "[OK] DNS impostato: $($picked.Name) ($($picked.Primary))." -ForegroundColor Green
+        }
     }
     "^[Aa]$" {
-        if($Best.Id -eq 0) { Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ResetServerAddresses }
-        else { 
-            $p = $DnsList | Where-Object {$_.Id -eq $Best.Id}
-            Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ServerAddresses ($p.Primary, $p.Secondary) 
+        if ($Best.Id -eq 0) {
+            Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ResetServerAddresses
+        } else {
+            $picked = $DnsList | Where-Object { $_.Id -eq $Best.Id }
+            Set-DnsClientServerAddress -InterfaceIndex $Interface.InterfaceIndex -ServerAddresses ($picked.Primary, $picked.Secondary)
         }
-        Write-Host "Migliore applicato."
+        Write-Host "[OK] DNS migliore applicato: $($Best.Name) ($($Best.MEDIA) ms)." -ForegroundColor Green
+    }
+    "^[Xx]$" {
+        Write-Host "[*] Nessuna modifica applicata." -ForegroundColor DarkGray
+    }
+    default {
+        Write-Host "[!] Scelta non valida. Nessuna modifica applicata." -ForegroundColor Red
     }
 }
-Read-Host "Premi Invio"
+
+Write-Host ""
+Read-Host "Premi Invio per chiudere"

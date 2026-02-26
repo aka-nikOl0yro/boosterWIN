@@ -1,28 +1,24 @@
 @echo off
->nul 2>&1 "%SYSTEMROOT%\system32\cacls.exe" "%SYSTEMROOT%\system32\config\system"
 
-REM --> If error flag set, we do not have admin.
-if '%errorlevel%' NEQ '0' (
-echo Requesting administrative privileges...
-goto UACPrompt
-) else ( goto gotAdmin )
-:UACPrompt
-echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
-"%temp%\getadmin.vbs"
-exit /B
-:gotAdmin
-if exist "%temp%\getadmin.vbs" ( del "%temp%\getadmin.vbs" )
-pushd "%CD%"
-CD /D "%~dp0"
+:: 1. Controllo dei privilegi di amministratore
+net session >nul 2>&1
+if %errorLevel% == 0 (
+    echo [OK] Permessi di amministratore confermati.
+) else (
+    echo [*] Richiesta permessi di amministratore in corso...
+    powershell -Command "Start-Process '%~dpnx0' -Verb RunAs"
+    exit /b
+)
 
-pushd "%~dp0"
+:: 2. Imposta la cartella di lavoro corrente su quella dello script
+cd /d "%~dp0"
 
- timeout 1
+
+ timeout 1 >nul
  echo ricerca di aggiornamenti...
 wuauclt.exe /detectnow /updatenow
 
-if exist "Iinternet" (
+if exist "Internet" (
  start internetboosterPRO.bat
  exit
  ) else (
@@ -60,7 +56,7 @@ pause
 color 07
 echo gpedit configurato
 timeout 2 > nul
-choice /c yn /cs /t 30 /d y /m "aprire l'optimizer "
+choice /c yn /cs /t 30 /d n /m "aprire l'optimizer (non consigliato)"
 if errorlevel 2 goto SKIP1
 if errorlevel 1 goto RUN
 :RUN
@@ -86,5 +82,4 @@ if errorlevel 2 (
 timeout 40 > nul
 exit)
 if errorlevel 1 shutdown /r -t 40
-
 pause
