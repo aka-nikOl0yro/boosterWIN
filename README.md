@@ -113,7 +113,8 @@ Percorso: `Modelli Amministrativi → Rete → Utilità di pianificazione pacche
 
 | Fix | Stato | Descrizione |
 |-----|-------|-------------|
-| `fotoenable.reg` | ✅ Integrato in `reg.ps1` dalla v4.1.5 | Risolve il flickering delle finestre introdotto dalla versione 4 |
+| `fix1.reg` | ✅ Integrato in `reg.ps1` dalla v4.1.5 | Risolve il flickering delle finestre introdotto dalla versione 4 |
+| `fix_login.reg` | ✅ Integrato in `reg.ps1` dalla v4.1.6 | Risolve il problema che impediva l'accesso all'accuont ms |
 
 ---
 
