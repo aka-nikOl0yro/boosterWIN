@@ -1,0 +1,9 @@
+Windows Registry Editor Version 5.00
+
+; Fix: Riabilita il servizio "Microsoft Account Sign-in Assistant" (wlidsvc)
+; Disabilitato per errore da reg.ps1
+; Imposta l'avvio su MANUALE (3) — era Disabled (4)
+; Dopo l'importazione, riavviare il PC o avviare il servizio manualmente da services.msc
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\wlidsvc]
+"Start"=dword:00000003
