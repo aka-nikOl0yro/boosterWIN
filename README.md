@@ -127,7 +127,7 @@ Questo software è fornito **"così com'è"**, senza garanzie di alcun tipo. L'a
 
 Hai trovato un bug o vuoi suggerire una miglioria? Apri una [Issue](https://github.com/aka-nikOl0yro/boosterWIN/issues) oppure entra nel nostro server Discord:
 
-[![Discord](https://img.shields.io/discord/1?label=Discord&logo=discord&style=flat-square)](https://discord.gg/sStBFCepAm)
+[![Discord](https://img.shields.io/discord/1422660832017518694?label=Discord&logo=discord&style=flat-square)](https://discord.gg/sStBFCepAm)
 
 ---
 
