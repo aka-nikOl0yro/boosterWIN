@@ -129,7 +129,7 @@ Hai trovato un bug o vuoi suggerire una miglioria? Apri una [Issue](https://gith
 
 
 [![Discord](https://img.shields.io/discord/1422660832017518694?label=Discord&logo=discord&style=flat-square&color=5865F2)](https://discord.gg/sStBFCepAm)
-<iframe src="https://discord.com/widget?id=1422660832017518694&theme=dark" width="350" height="500" allowtransparency="true" frameborder="0" sandbox="allow-popups allow-popups-to-escape-sandbox allow-same-origin allow-scripts"></iframe>
+
 ---
 
 *Progetto creato da [aka-nikOl0yro](https://github.com/aka-nikOl0yro)*
