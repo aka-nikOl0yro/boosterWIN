@@ -37,7 +37,8 @@ boosterWIN/
 │   ├── tcp1.png              # Guida TCP Optimizer - General Settings
 │   └── tcp2.png              # Guida TCP Optimizer - Advanced Settings
 └── FIX/
-    └── fix1.reg        # Fix flickering finestre (post v4.1.5: già incluso in reg.ps1)
+    ├── fix1.reg        # Fix flickering finestre (post v4.1.5: già incluso in reg.ps1)
+    └── fix_login.reg   # Fix accesso account ms
 ```
 
 ---
