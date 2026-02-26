@@ -932,7 +932,9 @@ Set-ServiceState "RemoteRegistry" "Disabled"
 #Set-ServiceState "bthserv" "Disabled"
 #Set-ServiceState "WMPNetworkSvc" "Disabled"
 #Set-ServiceState "stisvc" "Disabled"
-Set-ServiceState "wlidsvc" "Disabled"
+#Set-ServiceState "wlidsvc" "Disabled" rompe il login con laccount microsoft
+Set-ServiceState "wlidsvc" "Manual"
+
 if ($Tweaks.APPLY_DISABLE_PRINTER) {
     Write-Host "  -> Disabilitazione del servizio Spooler di stampa..."
     Set-ServiceState "spooler" "Disabled"
@@ -972,3 +974,4 @@ Write-Host "E' necessario riavviare il sistema per applicare tutte le modifiche.
 Restart-Computer -Force -Delay 60 -Message "Riavvio programmato in 60 secondi per completare l'ottimizzazione."
 
 Pop-Location
+
