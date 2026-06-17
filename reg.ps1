@@ -26,6 +26,45 @@ if (-not (Test-IsAdmin)) {
 Push-Location -Path $PSScriptRoot
 
 # ===================================================================
+# === PARAMETRI (per integrazione con Hub) ===
+# ===================================================================
+param(
+    [string[]]$ApplyOnly = @(),      # ID tweak da applicare ("WINUPDATE","KERNEL","GAME_NET", ...)
+    [switch]$Silent                   # Modalita' headless: salta menu, non riavvia
+)
+
+# Mappatura IDs -> chiavi Tweaks (usato in modalita' -Silent)
+$IdToTweakKey = @{
+    "WINUPDATE"      = "APPLY_WINUPDATE_TWEAK"
+    "WUDO"           = "APPLY_DISABLE_WUDO"
+    "BINGSEARCH"     = "APPLY_BINGSEARCH_TWEAK"
+    "SUGGESTED_APPS" = "APPLY_SUGGESTED_APPS_TWEAK"
+    "GAMEBAR"        = "APPLY_DISABLE_GAMEBAR"
+    "LOCKSCREEN_BLUR"= "APPLY_DISABLE_LOCKSCREEN_BLUR"
+    "TASKBAR_SEC"    = "APPLY_TASKBAR_SECONDS"
+    "STICKYKEYS"     = "APPLY_DISABLE_STICKYKEYS"
+    "AI"             = "APPLY_DISABLE_AI"
+    "RAM_SCHED"      = "APPLY_RAM_SCHEDULER"
+    "MULTITASKING"   = "APPLY_MULTITASKING_TWEAK"
+    "KERNEL"         = "APPLY_KERNEL_TWEAKS"
+    "PRINTER"        = "APPLY_DISABLE_PRINTER"
+    "GAMING_NET"     = "APPLY_GAMING_NET_TWEAKS"
+    "IPV6"           = "APPLY_DISABLE_IPV6"
+    "DESKTOP_ICONS"  = "APPLY_DESKTOP_ICONS"
+    "DNSCLIENT"      = "APPLY_DISABLE_DNSCLIENT"
+    "ULTIMATE_PERF"  = "APPLY_ULTIMATE_PERF"
+    "INTEL_TSX"      = "APPLY_INTEL_TSX_TWEAK"
+    "INTEL_BOOST"    = "APPLY_INTEL_BOOST_TWEAK"
+    "AMD_HPET"       = "APPLY_AMD_HPET_TWEAK"
+    "AMD_CORE_PARK"  = "APPLY_AMD_CORE_PARKING_TWEAK"
+    "UNLOADDLL"      = "APPLY_UNLOADDLL_TWEAK"
+    "CLASSIC_CTX"    = "APPLY_CLASSIC_CONTEXT_MENU"
+    "CLASSIC_RIBBON" = "APPLY_CLASSIC_RIBBON"
+    "BLOCK_EDGE"     = "APPLY_BLOCK_EDGE_CHAT"
+    "BYPASS_CHECK"   = "APPLY_BYPASS_CHECKS"
+}
+
+# ===================================================================
 # === VARIABILI PER PROGRESSO ===
 # ===================================================================
 # Aggiornare se si aggiungono/rimuovono sezioni principali di ottimizzazione
@@ -77,27 +116,36 @@ function Show-MenuChoice {
 }
 
 # ===================================================================
-# === MENU DI PERSONALIZZAZIONE ===
+# === RILEVAMENTO HARDWARE E SISTEMA OPERATIVO (sempre necessario) ===
 # ===================================================================
-Clear-Host
+$isLaptop = (Get-CimInstance -ClassName Win32_SystemEnclosure).ChassisTypes | Where-Object { $_ -in 8, 9, 10, 14 }
 
-# --- AGGIUNTA FONDAMENTALE INIZIO ---
+$cpu = Get-CimInstance Win32_Processor
+$cpuManufacturer = $cpu.Manufacturer.Trim()
+
+$totalRamGB = [Math]::Truncate((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1GB)
+
 $osInfo = Get-CimInstance Win32_OperatingSystem
 $buildNumber = [int]$osInfo.BuildNumber
 $isWin11 = $buildNumber -ge 22000
-$winVersionName = if ($isWin11) { "Windows 11" } else { "Windows 10" }
-# --- AGGIUNTA FONDAMENTALE FINE ---
 
-Write-Host "===================================================================" -ForegroundColor Green
-Write-Host "=== MENU DI PERSONALIZZAZIONE DELLE OTTIMIZZAZIONI ===" -ForegroundColor White
-Write-Host "=== Sistema Rilevato: $winVersionName ===" -ForegroundColor Yellow 
-Write-Host "===================================================================" -ForegroundColor Green
-Write-Host "Rispondi 'Si' o 'No' alle seguenti domande per personalizzare lo script."
-Write-Host "Per ogni opzione, puoi scegliere 'Dettagli' per visualizzare una descrizione."
-Write-Host ""
+# ===================================================================
+# === MENU INTERATTIVO (solo se NON in modalita' -Silent) ===
+# ===================================================================
+if (-not $Silent) {
+    Clear-Host
 
-$Tweaks = @{
-    APPLY_WINUPDATE_TWEAK         = Show-MenuChoice -Question "Bloccare l'installazione di DRIVER tramite Windows Update?" -DefaultChoice $true -Details @"
+    $winVersionName = if ($isWin11) { "Windows 11" } else { "Windows 10" }
+    Write-Host "===================================================================" -ForegroundColor Green
+    Write-Host "=== MENU DI PERSONALIZZAZIONE DELLE OTTIMIZZAZIONI ===" -ForegroundColor White
+    Write-Host "=== Sistema Rilevato: $winVersionName ===" -ForegroundColor Yellow
+    Write-Host "===================================================================" -ForegroundColor Green
+    Write-Host "Rispondi 'Si' o 'No' alle seguenti domande per personalizzare lo script."
+    Write-Host "Per ogni opzione, puoi scegliere 'Dettagli' per visualizzare una descrizione."
+    Write-Host ""
+
+    $Tweaks = @{
+        APPLY_WINUPDATE_TWEAK         = Show-MenuChoice -Question "Bloccare l'installazione di DRIVER tramite Windows Update?" -DefaultChoice $true -Details @"
 PRO:
 - Windows Update scarichera' SOLO patch di sicurezza e aggiornamenti per Defender.
 - Impedisce a Windows di sovrascrivere i tuoi driver (GPU, Audio) con versioni generiche o vecchie.
@@ -127,7 +175,7 @@ PRO:
 CONTRO:
 - Potresti non vedere alcuni suggerimenti di app o funzionalita' di Microsoft (molto raro).
 "@
-APPLY_DISABLE_GAMEBAR         = Show-MenuChoice -Question "Disattivare COMPLETAMENTE la Game Bar e DVR?" -DefaultChoice $false -Details @"
+    APPLY_DISABLE_GAMEBAR         = Show-MenuChoice -Question "Disattivare COMPLETAMENTE la Game Bar e DVR?" -DefaultChoice $false -Details @"
 PRO:
 - Libera risorse se non registri clip di gioco.
 CONTRO:
@@ -291,7 +339,7 @@ CONTRO:
 
 if ($isWin11) {
     Write-Host "`n--- Opzioni Specifiche Windows 11 ---" -ForegroundColor Cyan
-    
+
     $Tweaks.APPLY_CLASSIC_CONTEXT_MENU    = Show-MenuChoice -Question "Ripristinare il menu contestuale classico di Windows 10?" -DefaultChoice $true -Details @"
 PRO:
 - Mostra immediatamente tutte le opzioni disponibili, senza il passaggio 'Mostra altre opzioni'.
@@ -299,7 +347,7 @@ PRO:
 CONTRO:
 - Perdi il nuovo menu contestuale di Windows 11, piu' minimale ma meno funzionale.
 "@
-    
+
     $Tweaks.APPLY_CLASSIC_RIBBON          = Show-MenuChoice -Question "Attivare l'interfaccia 'ribbon' classica in Esplora File?" -DefaultChoice $true -Details @"
 PRO:
 - Ripristina la barra multifunzione completa e ricca di funzionalita' di Windows 10.
@@ -321,6 +369,84 @@ CONTRO:
 - Microsoft potrebbe in futuro negare aggiornamenti a sistemi non conformi.
 - Si disattivano controlli pensati per migliorare la sicurezza del sistema.
 "@
+}  # end $Tweaks interactive block
+
+}  # end if (-not $Silent)
+
+# ===================================================================
+# === COSTRUZIONE TWEAKS IN MODO SILENZIOSO (per Hub) ===
+# In modalita' -Silent, $Tweaks e' gia' vuoto — lo popola dai param. ===
+# ===================================================================
+if ($Silent -and $ApplyOnly.Count -gt 0) {
+    Write-Host "[*] Modalita' silenziosa: applicazione tweak selezionati..." -ForegroundColor Cyan
+
+    # Tutti i tweak con default false, sovrascritti da ApplyOnly
+    $defaultTweaks = @{
+        APPLY_WINUPDATE_TWEAK         = $false
+        APPLY_DISABLE_WUDO            = $false
+        APPLY_BINGSEARCH_TWEAK        = $false
+        APPLY_SUGGESTED_APPS_TWEAK    = $false
+        APPLY_DISABLE_GAMEBAR         = $false
+        APPLY_DISABLE_LOCKSCREEN_BLUR = $false
+        APPLY_TASKBAR_SECONDS         = $false
+        APPLY_DISABLE_STICKYKEYS      = $false
+        APPLY_DISABLE_AI              = $false
+        APPLY_RAM_SCHEDULER           = $false
+        APPLY_MULTITASKING_TWEAK      = $false
+        APPLY_KERNEL_TWEAKS           = $false
+        APPLY_DISABLE_PRINTER         = $false
+        APPLY_GAMING_NET_TWEAKS       = $false
+        APPLY_DISABLE_IPV6            = $false
+        APPLY_DESKTOP_ICONS           = $false
+        APPLY_DISABLE_DNSCLIENT       = $false
+        APPLY_ULTIMATE_PERF           = $false
+        APPLY_INTEL_TSX_TWEAK         = $false
+        APPLY_INTEL_BOOST_TWEAK       = $false
+        APPLY_AMD_HPET_TWEAK          = $false
+        APPLY_AMD_CORE_PARKING_TWEAK  = $false
+        APPLY_UNLOADDLL_TWEAK         = $false
+        APPLY_CLASSIC_CONTEXT_MENU    = $false
+        APPLY_CLASSIC_RIBBON          = $false
+        APPLY_BLOCK_EDGE_CHAT         = $false
+        APPLY_BYPASS_CHECKS           = $false
+    }
+
+    # Applica quelli richiesti dall'Hub (o dai param passati)
+    foreach ($id in $ApplyOnly) {
+        $idUpper = $id.ToUpper().Trim()
+        if ($IdToTweakKey.ContainsKey($idUpper)) {
+            $keyName = $IdToTweakKey[$idUpper]
+            # Controlla anche match parziale (per backward compatibility: "KERNEL" -> "APPLY_KERNEL_TWEAKS")
+            $partialMatch = $defaultTweaks.Keys | Where-Object { $_ -like "*$($idUpper)*" }
+            if ($partialMatch) {
+                foreach ($k in $partialMatch) { $defaultTweaks[$k] = $true }
+            } else {
+                $defaultTweaks[$keyName] = $true
+            }
+        }
+    }
+
+    # Applica anche la logica adattiva per tweak hardware-dipendenti
+    if ($isLaptop) { $defaultTweaks.APPLY_ULTIMATE_PERF = $true }  # laptop default aggressivo
+    $defaultTweaks.APPLY_DISABLE_WUDO = $true   # sempre vero in silent mode (equivalente a DefaultChoice $true)
+    $defaultTweaks.APPLY_DISABLE_AI   = $true
+    $defaultTweaks.APPLY_RAM_SCHEDULER= $true
+    $defaultTweaks.APPLY_MULTITASKING_TWEAK = $true
+
+    # Se CPU rilevata, applica tweak specifici se nella lista
+    if ($cpuManufacturer -eq "GenuineIntel" -and ($ApplyOnly -contains "INTEL_TSX" -or $ApplyOnly -contains "KERNEL")) {
+        $defaultTweaks.APPLY_INTEL_TSX_TWEAK = $true
+    }
+    if ($cpuManufacturer -eq "AuthenticAMD" -and ($ApplyOnly -contains "AMD_HPET" -or $ApplyOnly -contains "KERNEL")) {
+        $defaultTweaks.APPLY_AMD_HPET_TWEAK = $true
+    }
+
+    # Sovrascrive $Tweaks con i valori calcolati
+    foreach ($key in $defaultTweaks.Keys) {
+        $Tweaks.$key = $defaultTweaks[$key]
+    }
+
+    Write-Host "[*] Tweak da applicare: $($ApplyOnly -join ', ')" -ForegroundColor Yellow
 }
 
 Clear-Host
@@ -581,6 +707,18 @@ Set-RegValue "HKCU:\System\GameConfigStore" "GameDVR_FSEBehaviorMode" 2
 Set-RegValue "HKCU:\System\GameConfigStore" "GameDVR_DXGIHonorFSEWindowsCompatible" 1
 Set-RegValue "HKCU:\System\GameConfigStore" "GameDVR_HonorUserFSEBehaviorMode" 1
 Set-RegValue "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" "AllowGameDVR" 0
+Write-Host "  -> Assegnazione protocolli ms-gamebar a systray per evitare popup 'Come vuoi aprire...'..."
+$fixProtocols = @("ms-gamebar", "ms-gamebarservices", "ms-gamingoverlay")
+foreach ($p in $fixProtocols) {
+    $path = "Registry::HKEY_CLASSES_ROOT\$p"
+    if (!(Test-Path $path)) { New-Item -Path $path -Force | Out-Null }
+    Set-ItemProperty -Path $path -Name "(Default)" -Value "URL:$p"
+    Set-ItemProperty -Path $path -Name "URL Protocol" -Value ""
+    Set-ItemProperty -Path $path -Name "NoOpenWith" -Value ""
+    $cmdPath = "$path\shell\open\command"
+    if (!(Test-Path $cmdPath)) { New-Item -Path $cmdPath -Force | Out-Null }
+    Set-ItemProperty -Path $cmdPath -Name "(Default)" -Value "$env:SystemRoot\System32\systray.exe"
+}
 } 
 else {
     Write-Host "  -> Game Bar MANTENUTA attiva (come richiesto)." -ForegroundColor Cyan
@@ -944,13 +1082,15 @@ Write-ProgressMessage "Disabilitazione servizi non essenziali."
 # ===================================================================
 # === SCRIPT ESTERNI E COMPLETAMENTO ===
 # ===================================================================
-Write-ProgressMessage "Rimozione Bloatware."
-Write-Host "`n[*] Rimozione delle app preinstallate (Bloatware) tramite 'debloat.ps1'..." -ForegroundColor Yellow
-try {
-    & "$PSScriptRoot\src\debloat.ps1" -ErrorAction Stop
-}
-catch {
-    Write-Warning "Impossibile eseguire lo script 'debloat.ps1'. Potrebbe non esistere o contenere errori."
+if (-not $Silent) {
+    Write-ProgressMessage "Rimozione Bloatware."
+    Write-Host "`n[*] Rimozione delle app preinstallate (Bloatware) tramite 'debloat.ps1'..." -ForegroundColor Yellow
+    try {
+        & "$PSScriptRoot\src\debloat.ps1" -ErrorAction Stop
+    }
+    catch {
+        Write-Warning "Impossibile eseguire lo script 'debloat.ps1'. Potrebbe non esistere o contenere errori."
+    }
 }
 
 
